@@ -1,29 +1,34 @@
 import express from "express";
-import mongoose from "mongoose";
 import cors from "cors";
 import dotenv from "dotenv";
 import movieRoutes from "./routes/movieRoutes.js";
+import authRoutes from "./routes/authRoutes.js";
+import pool from "./db/index.js";
 
 dotenv.config();
-const app = express();
 
-// Middleware
+const app = express();
 app.use(cors());
 app.use(express.json());
 
-// MongoDB connection
-mongoose
-  .connect(process.env.MONGO_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  })
-  .then(() => console.log("MongoDB connected"))
-  .catch((err) => console.error("MongoDB connection error:", err));
+// routes
+app.use("/movies", movieRoutes);
+app.use("/auth", authRoutes);
 
-// Routes
-app.get("/", (req, res) => res.send("MovieApp Backend Running"));
-app.use("/api/movies", movieRoutes);
+const PORT = process.env.PORT || 4000;
 
-// Start server
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+async function start() {
+  try {
+    // DB connection test
+    await pool.query('SELECT 1');
+    app.listen(PORT, () => {
+      console.log(`Server listening on port ${PORT}`);
+    });
+  } catch (err) {
+    console.error("Failed to start server", err);
+    process.exit(1);
+  }
+}
+
+start();
+

@@ -1,14 +1,18 @@
-import { useState } from 'react'
 import './App.css'
-import LoginSignup from './components/loginSignup.jsx'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import LoginSignup from './components/LoginSignup.jsx'
+import Home from './pages/Home.jsx'
 
 function App() {
-  const [count, setCount] = useState(0)
-
   return (
-    <div>
-      <LoginSignup />
-    </div>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<LoginSignup />} />
+        <Route path="/home" element={<Home />} />
+        {/* fallback to root */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </BrowserRouter>
   )
 }
 

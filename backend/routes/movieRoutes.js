@@ -1,28 +1,29 @@
 import express from "express";
-import mongoose from "mongoose";
-import Movie from "../models/movie.js"; // ✅ lowercase file name match!
+import { getAllMovies, createMovie } from "../models/movie.js";
+import { authenticate } from "../middleware/auth.js";
 
 const router = express.Router();
 
 // GET all movies
 router.get("/", async (req, res) => {
   try {
-    const movies = await Movie.find();
+    const movies = await getAllMovies();
     res.json(movies);
   } catch (error) {
+    console.error(error);
     res.status(500).json({ message: "Error fetching movies" });
   }
 });
 
-// POST a new movie
-router.post("/", async (req, res) => {
+// POST a new movie (protected)
+router.post("/", authenticate, async (req, res) => {
   try {
-    const movie = new Movie(req.body);
-    const saved = await movie.save();
+    const saved = await createMovie(req.body);
     res.json(saved);
   } catch (error) {
+    console.error(error);
     res.status(500).json({ message: "Error saving movie" });
   }
 });
 
-export default router; 
+export default router;
