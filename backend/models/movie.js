@@ -11,3 +11,19 @@ export async function createMovie({ title, genre, year, rating }) {
   return rows[0];
 }
 
+export async function getMovieById(id) {
+  const { rows } = await pool. query (" SELECT FROM movies WHERE id = $1", [id]);
+  return rows[0];
+}
+
+export async function searchMovies(query) {
+  const sql = `SELECT id, title, genre, year, rating FROM movies WHERE title ILIKE $1 OR description ILIKE $1 ORDER BY rating DESC`;
+  const { rows } = await pool.query(sql, [`%${query}%`]);
+  return rows;
+}
+
+export async function getMoviesByGenre(genre) {
+  const sql = `SELECT id, title, genre, year, rating FROM movies WHERE genre ILIKE $1 ORDER BY rating DESC`;
+  const { rows } = await pool.query(sql, [`%${genre}%`]);
+  return rows;
+}
