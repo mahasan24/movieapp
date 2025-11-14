@@ -1,17 +1,29 @@
 import './App.css'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import LoginSignup from './components/LoginSignup.jsx'
 import Home from './pages/Home.jsx'
+import Navbar from './components/Navbar.jsx'
+
+function AppContent() {
+  const location = useLocation();
+  const showNavbar = location.pathname !== '/login';
+
+  return (
+    <>
+      {showNavbar && <Navbar />}
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/login" element={<LoginSignup />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </>
+  )
+}
 
 function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<LoginSignup />} />
-        <Route path="/home" element={<Home />} />
-        {/* fallback to root */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+      <AppContent />
     </BrowserRouter>
   )
 }
