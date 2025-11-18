@@ -144,33 +144,9 @@
 
 .results-summary p {
   margin: 0;
-  color: #555;
-  font-size: 0.95rem;
 }
-
-.results-summary strong {
-  color: #f98012;
-  font-weight: 700;
-}
-
-/* Loading State */
-.loading-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 60px 20px;
-  color: #666;
-}
-
-.loading-spinner {
-  width: 50px;
-  height: 50px;
-  border: 4px solid #f3f3f3;
-  border-top: 4px solid #f98012;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin-bottom: 16px;
+.welcome {
+  margin-right: 12px;
 }
 
 @keyframes spin {
