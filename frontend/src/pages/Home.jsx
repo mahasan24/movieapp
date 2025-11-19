@@ -95,13 +95,11 @@ const Home = () => {
   };
 
   const clearFilters = () => {
-    setLocalSearch('');
     setSelectedGenre('');
     setSelectedLanguage('');
-    setSearchParams({});
   };
 
-  const hasActiveFilters = searchQuery || selectedGenre || selectedLanguage;
+  const hasActiveFilters = selectedGenre || selectedLanguage;
 
   return (
     <div className="home-root">
@@ -111,62 +109,52 @@ const Home = () => {
 
       {/* Filters Section */}
       <div className="filters-section">
-        <div className="filter-group">
-          <label htmlFor="search-input" className="filter-label">
-            🔍 Search
-          </label>
-          <input
-            id="search-input"
-            type="text"
-            className="filter-input search-input"
-            placeholder="Search by title, genre..."
-            value={localSearch}
-            onChange={handleSearchChange}
-          />
-        </div>
+        <div className="filters-container">
+          <div className="filter-group">
+            <label htmlFor="genre-filter" className="filter-label">
+              <span className="filter-icon">🎭</span>
+              <span>Filter by Genre</span>
+            </label>
+            <select
+              id="genre-filter"
+              className="filter-select"
+              value={selectedGenre}
+              onChange={handleGenreChange}
+            >
+              <option value="">All Genres</option>
+              {availableGenres.map(genre => (
+                <option key={genre} value={genre}>{genre}</option>
+              ))}
+            </select>
+          </div>
 
-        <div className="filter-group">
-          <label htmlFor="genre-filter" className="filter-label">
-            🎭 Genre
-          </label>
-          <select
-            id="genre-filter"
-            className="filter-select"
-            value={selectedGenre}
-            onChange={handleGenreChange}
-          >
-            <option value="">All Genres</option>
-            {availableGenres.map(genre => (
-              <option key={genre} value={genre}>{genre}</option>
-            ))}
-          </select>
-        </div>
+          <div className="filter-group language-filter-group">
+            <label htmlFor="language-filter" className="filter-label">
+              <span className="filter-icon">🌐</span>
+              <span>Filter by Language</span>
+              <span className="filter-badge">Coming Soon</span>
+            </label>
+            <select
+              id="language-filter"
+              className="filter-select disabled"
+              value={selectedLanguage}
+              onChange={handleLanguageChange}
+              disabled
+              title="Language filter coming soon"
+            >
+              <option value="">All Languages</option>
+              <option value="en">English</option>
+              <option value="es">Spanish</option>
+              <option value="fr">French</option>
+            </select>
+          </div>
 
-        <div className="filter-group">
-          <label htmlFor="language-filter" className="filter-label">
-            🌐 Language
-          </label>
-          <select
-            id="language-filter"
-            className="filter-select"
-            value={selectedLanguage}
-            onChange={handleLanguageChange}
-            disabled
-            title="Language filter coming soon"
-          >
-            <option value="">All Languages</option>
-            <option value="en">English</option>
-            <option value="es">Spanish</option>
-            <option value="fr">French</option>
-          </select>
-          <span className="filter-badge">Coming Soon</span>
+          {hasActiveFilters && (
+            <button className="clear-filters-btn" onClick={clearFilters}>
+              <span>✕</span> Clear Filters
+            </button>
+          )}
         </div>
-
-        {hasActiveFilters && (
-          <button className="clear-filters-btn" onClick={clearFilters}>
-            Clear Filters
-          </button>
-        )}
       </div>
 
       {/* Results Summary */}
