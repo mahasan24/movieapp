@@ -3,6 +3,10 @@ import cors from "cors";
 import dotenv from "dotenv";
 import movieRoutes from "./routes/movieRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
+import theaterRoutes from "./routes/theaterRoutes.js";
+import auditoriumRoutes from "./routes/auditoriumRoutes.js";
+import showtimeRoutes from "./routes/showtimeRoutes.js";
+import bookingRoutes from "./routes/bookingRoutes.js";
 import pool from "./db/index.js";
 
 dotenv.config();
@@ -14,6 +18,10 @@ app.use(express.json());
 // routes
 app.use("/movies", movieRoutes);
 app.use("/auth", authRoutes);
+app.use("/theaters", theaterRoutes);
+app.use("/auditoriums", auditoriumRoutes);
+app.use("/showtimes", showtimeRoutes);
+app.use("/bookings", bookingRoutes);
 
 const PORT = process.env.PORT || 4000;
 
