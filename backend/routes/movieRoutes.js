@@ -1,5 +1,5 @@
 import express from "express";
-import { getAllMovies, createMovie } from "../models/movie.js";
+import { getAllMovies, createMovie, getMovieById, searchMovies, getMoviesByGenre } from "../models/movie.js";
 import { authenticate } from "../middleware/auth.js";
 
 const router = express.Router();
@@ -22,7 +22,7 @@ router.get("/search",async (req,res)=>{
       return res.status(400).json({message:"Search query is required"});
     }
     const movies= await searchMovies(query);
-    res.jeson(movies);
+    res.json(movies);
   } catch (error) {
     console.error(error);
     res.status(500).json({message:"Error searching movies"});
@@ -30,7 +30,7 @@ router.get("/search",async (req,res)=>{
 });
 
 // GET movies by genre
-router.get("genre/:genre",async(req,res)=>{
+router.get("/genre/:genre",async(req,res)=>{
   try{
     const movies = await getMoviesByGenre(req.params.genre);
     res.json(movies);
