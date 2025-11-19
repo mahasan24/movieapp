@@ -1,118 +1,184 @@
 import pool from "../db/index.js";
 
-// Get showtimes with filters (movie_id, theater_id, date)
-export async function getShowtimes({ movie_id, theater_id, date, auditorium_id } = {}) {
-  let sql = `
-    SELECT s.showtime_id, s.movie_id, s.auditorium_id, s.show_date, s.show_time, 
-           s.price, s.available_seats, s.created_at,
-           m.title as movie_title, m.poster_url, m.duration,
-           a.name as auditorium_name, a.seating_capacity,
-           t.theater_id, t.name as theater_name, t.city
+// Get all showtimes with movie and theater info
+export async function getAllShowtimes() {
+  const sql = `
+    SELECT 
+      s.showtime_id,
+      s.show_date,
+      s.show_time,
+      s.price,
+      s.available_seats,
+      m.id as movie_id,
+      m.title as movie_title,
+      m.duration,
+      a.auditorium_id,
+      a.name as auditorium_name,
+      a.seating_capacity,
+      t.theater_id,
+      t.name as theater_name,
+      t.city
     FROM showtimes s
-    INNER JOIN movies m ON s.movie_id = m.id
-    INNER JOIN auditoriums a ON s.auditorium_id = a.auditorium_id
-    INNER JOIN theaters t ON a.theater_id = t.theater_id
-    WHERE 1=1
+    JOIN movies m ON s.movie_id = m.id
+    JOIN auditoriums a ON s.auditorium_id = a.auditorium_id
+    JOIN theaters t ON a.theater_id = t.theater_id
+    WHERE s.show_date >= CURRENT_DATE
+    ORDER BY s.show_date, s.show_time
   `;
-  const values = [];
-  let paramCount = 1;
+  const { rows } = await pool.query(sql);
+  return rows;
+}
 
-  if (movie_id) {
-    sql += ` AND s.movie_id = $${paramCount}`;
-    values.push(movie_id);
-    paramCount++;
-  }
+// Get showtimes by movie ID
+export async function getShowtimesByMovie(movie_id) {
+  const sql = `
+    SELECT 
+      s.*,
+      a.name as auditorium_name,
+      a.seating_capacity,
+      t.name as theater_name,
+      t.city,
+      t.address
+    FROM showtimes s
+    JOIN auditoriums a ON s.auditorium_id = a.auditorium_id
+    JOIN theaters t ON a.theater_id = t.theater_id
+    WHERE s.movie_id = $1 
+      AND s.show_date >= CURRENT_DATE
+    ORDER BY s.show_date, s.show_time
+  `;
+  const { rows } = await pool.query(sql, [movie_id]);
+  return rows;
+}
 
-  if (theater_id) {
-    sql += ` AND t.theater_id = $${paramCount}`;
-    values.push(theater_id);
-    paramCount++;
-  }
-
-  if (auditorium_id) {
-    sql += ` AND s.auditorium_id = $${paramCount}`;
-    values.push(auditorium_id);
-    paramCount++;
-  }
-
-  if (date) {
-    sql += ` AND s.show_date = $${paramCount}`;
-    values.push(date);
-    paramCount++;
-  }
-
-  sql += " ORDER BY s.show_date, s.show_time";
-
-  const { rows } = await pool.query(sql, values);
+// Get showtimes by date
+export async function getshowtimesByDate(date) {
+  const sql = `
+    SELECT 
+      s.*,
+      m.title as movie_title,
+      m.duration,
+      a.name as auditorium_name,
+      t.name as theater_name,
+      t.city
+    FROM showtimes s
+    JOIN movies m ON s.movie_id = m.id
+    JOIN auditoriums a ON s.auditorium_id = a.auditorium_id
+    JOIN theaters t ON a.theater_id = t.theater_id
+    WHERE s.show_date = $1
+    ORDER BY s.show_time
+  `;
+  const { rows } = await pool.query(sql, [date]);
   return rows;
 }
 
 // Get showtime by ID
 export async function getShowtimeById(showtime_id) {
-  const { rows } = await pool.query(
-    `SELECT s.showtime_id, s.movie_id, s.auditorium_id, s.show_date, s.show_time, 
-            s.price, s.available_seats, s.created_at,
-            m.title as movie_title, m.poster_url, m.duration, m.rating,
-            a.name as auditorium_name, a.seating_capacity,
-            t.theater_id, t.name as theater_name, t.city, t.address
-     FROM showtimes s
-     INNER JOIN movies m ON s.movie_id = m.id
-     INNER JOIN auditoriums a ON s.auditorium_id = a.auditorium_id
-     INNER JOIN theaters t ON a.theater_id = t.theater_id
-     WHERE s.showtime_id = $1`,
-    [showtime_id]
-  );
-  return rows[0];
-}
-
-// Create a new showtime
-export async function createShowtime({ movie_id, auditorium_id, show_date, show_time, price, available_seats }) {
   const sql = `
-    INSERT INTO showtimes (movie_id, auditorium_id, show_date, show_time, price, available_seats) 
-    VALUES ($1, $2, $3, $4, $5, $6) 
-    RETURNING showtime_id, movie_id, auditorium_id, show_date, show_time, price, available_seats, created_at
+    SELECT 
+      s.*,
+      m.id as movie_id,
+      m.title as movie_title,
+      m.description,
+      m.duration,
+      m.genre,
+      m.rating,
+      m.poster_url,
+      a.auditorium_id,
+      a.name as auditorium_name,
+      a.seating_capacity,
+      t.theater_id,
+      t.name as theater_name,
+      t.address,
+      t.city,
+      t.phone
+    FROM showtimes s
+    JOIN movies m ON s.movie_id = m.id
+    JOIN auditoriums a ON s.auditorium_id = a.auditorium_id
+    JOIN theaters t ON a.theater_id = t.theater_id
+    WHERE s.showtime_id = $1
   `;
-  const values = [movie_id, auditorium_id, show_date, show_time, price, available_seats];
-  const { rows } = await pool.query(sql, values);
+  const { rows } = await pool.query(sql, [showtime_id]);
   return rows[0];
 }
 
-// Update showtime
-export async function updateShowtime(showtime_id, { movie_id, auditorium_id, show_date, show_time, price, available_seats }) {
+// Create showtime (admin only)
+export async function createShowtime({ movie_id, auditorium_id, show_date, show_time, price }) {
+  // Get auditorium capacity
+  const capacitySql = `SELECT seating_capacity FROM auditoriums WHERE auditorium_id = $1`;
+  const capacityResult = await pool.query(capacitySql, [auditorium_id]);
+  
+  if (capacityResult.rows.length === 0) {
+    throw new Error('Auditorium not found');
+  }
+  
+  const available_seats = capacityResult.rows[0].seating_capacity;
+  
   const sql = `
-    UPDATE showtimes 
-    SET movie_id = COALESCE($1, movie_id),
-        auditorium_id = COALESCE($2, auditorium_id),
-        show_date = COALESCE($3, show_date),
-        show_time = COALESCE($4, show_time),
-        price = COALESCE($5, price),
-        available_seats = COALESCE($6, available_seats)
-    WHERE showtime_id = $7
-    RETURNING showtime_id, movie_id, auditorium_id, show_date, show_time, price, available_seats, created_at
+    INSERT INTO showtimes (movie_id, auditorium_id, show_date, show_time, price, available_seats)
+    VALUES ($1, $2, $3, $4, $5, $6)
+    RETURNING *
   `;
-  const values = [movie_id, auditorium_id, show_date, show_time, price, available_seats, showtime_id];
-  const { rows } = await pool.query(sql, values);
-  return rows[0];
-}
-
-// Delete showtime
-export async function deleteShowtime(showtime_id) {
-  const { rows } = await pool.query(
-    "DELETE FROM showtimes WHERE showtime_id = $1 RETURNING showtime_id",
-    [showtime_id]
-  );
+  const { rows } = await pool.query(sql, [movie_id, auditorium_id, show_date, show_time, price, available_seats]);
   return rows[0];
 }
 
 // Update available seats
 export async function updateAvailableSeats(showtime_id, seats_change) {
-  const { rows } = await pool.query(
-    `UPDATE showtimes 
-     SET available_seats = available_seats + $1 
-     WHERE showtime_id = $2 
-     RETURNING showtime_id, available_seats`,
-    [seats_change, showtime_id]
-  );
+  const sql = `
+    UPDATE showtimes 
+    SET available_seats = available_seats + $2
+    WHERE showtime_id = $1
+    RETURNING *
+  `;
+  const { rows } = await pool.query(sql, [showtime_id, seats_change]);
   return rows[0];
 }
 
+// Search showtimes with filters
+export async function searchShowtimes({ movie_id, theater_id, city, date }) {
+  let sql = `
+    SELECT 
+      s.*,
+      m.title as movie_title,
+      a.name as auditorium_name,
+      t.name as theater_name,
+      t.city
+    FROM showtimes s
+    JOIN movies m ON s.movie_id = m.id
+    JOIN auditoriums a ON s.auditorium_id = a.auditorium_id
+    JOIN theaters t ON a.theater_id = t.theater_id
+    WHERE s.show_date >= CURRENT_DATE
+  `;
+  
+  const params = [];
+  let paramCount = 1;
+  
+  if (movie_id) {
+    sql += ` AND s.movie_id = $${paramCount}`;
+    params.push(movie_id);
+    paramCount++;
+  }
+  
+  if (theater_id) {
+    sql += ` AND t.theater_id = $${paramCount}`;
+    params.push(theater_id);
+    paramCount++;
+  }
+  
+  if (city) {
+    sql += ` AND t.city ILIKE $${paramCount}`;
+    params.push(`%${city}%`);
+    paramCount++;
+  }
+  
+  if (date) {
+    sql += ` AND s.show_date = $${paramCount}`;
+    params.push(date);
+    paramCount++;
+  }
+  
+  sql += ` ORDER BY s.show_date, s.show_time`;
+  
+  const { rows } = await pool.query(sql, params);
+  return rows;
+}

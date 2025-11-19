@@ -12,7 +12,7 @@ export async function createMovie({ title, genre, year, rating, poster_url }) {
 }
 
 export async function getMovieById(id) {
-  const { rows } = await pool.query("SELECT id, title, genre, year, rating, poster_url FROM movies WHERE id = $1", [id]);
+  const { rows } = await pool.query("SELECT id, title, description, genre, year, rating, poster_url, duration, director, \"cast\" FROM movies WHERE id = $1", [id]);
   return rows[0];
 }
 
