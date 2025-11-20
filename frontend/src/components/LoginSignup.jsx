@@ -70,13 +70,13 @@ const LoginSignup = () => {
                     setIsSignup(false);
                     setMessage('Successfully registered. Please log in.');
                     setError(null);
-                    // ensure we're on the login route
-                    navigate('/');
+                    navigate('/login');  // Changed to /login
+
                 } else {
                     setMessage('Logged in successfully');
                     setError(null);
                     // go to home page
-                    navigate('/home');
+                    navigate('/');
                 }
         } catch (err) {
             console.error(err);

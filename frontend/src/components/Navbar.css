@@ -1,0 +1,179 @@
+.navbar {
+  background: white;
+  border-bottom: 1px solid #dee2e6;
+  padding: 0;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+}
+
+.navbar-container {
+  max-width: 100%;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 1.5rem;
+  height: 60px;
+}
+
+.navbar-left {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.navbar-brand {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #f98012;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.navbar-brand:hover {
+  color: #d96d0f;
+}
+
+.navbar-right {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.search-form {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: #f8f9fa;
+  padding: 0.3rem 0.5rem;
+  border-radius: 6px;
+  border: 1px solid #dee2e6;
+}
+
+.search-input {
+  border: none;
+  background: transparent;
+  outline: none;
+  padding: 0.4rem 0.6rem;
+  font-size: 0.9rem;
+  width: 300px;
+  color: #495057;
+}
+
+.search-input::placeholder {
+  color: #adb5bd;
+}
+
+.search-submit-btn {
+  background: transparent;
+  color: #6c757d;
+  border: none;
+  padding: 0.4rem 0.6rem;
+  border-radius: 4px;
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.search-submit-btn:hover {
+  background: #e9ecef;
+  color: #495057;
+}
+
+.guest-text {
+  color: #6c757d;
+  font-size: 0.9rem;
+  padding: 0 0.5rem;
+}
+
+.welcome-text {
+  color: #495057;
+  font-size: 0.9rem;
+  padding: 0 0.5rem;
+  font-weight: 500;
+}
+
+.login-btn {
+  background: #0f6cbf;
+  color: white;
+  text-decoration: none;
+  padding: 0.5rem 1.2rem;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: background-color 0.2s ease;
+  border: none;
+  cursor: pointer;
+}
+
+.login-btn:hover {
+  background: #0d5ca6;
+}
+
+.logout-btn {
+  background: #dc3545;
+  color: white;
+  text-decoration: none;
+  padding: 0.5rem 1.2rem;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: background-color 0.2s ease;
+  border: none;
+  cursor: pointer;
+}
+
+.logout-btn:hover {
+  background: #c82333;
+}
+
+@media (max-width: 992px) {
+  .navbar-container {
+    padding: 0.5rem 1rem;
+  }
+  
+  .guest-text {
+    display: none;
+  }
+  
+  .welcome-text {
+    display: none;
+  }
+  
+  .search-input {
+    width: 200px;
+  }
+}
+
+@media (max-width: 768px) {
+  .navbar-left {
+    gap: 0.5rem;
+  }
+  
+  .navbar-right {
+    gap: 0.5rem;
+  }
+  
+  .login-btn, .logout-btn {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.85rem;
+  }
+  
+  .search-input {
+    width: 150px;
+  }
+}
+
+@media (max-width: 480px) {
+  .navbar-brand {
+    font-size: 1.2rem;
+  }
+  
+  .search-input {
+    width: 100px;
+  }
+}
