@@ -39,7 +39,7 @@ const MovieDetail = () => {
   }, [id]);
 
   const handleBackClick = () => {
-    navigate('/home');
+    navigate('/');
   };
 
   if (loading) {
@@ -120,7 +120,12 @@ const MovieDetail = () => {
               <span className="meta-item">
                 <span className="meta-icon">⏱️</span>
                 <span className="meta-label">Duration:</span>
-                <span className="meta-value">{movie.duration} min</span>
+                <span className="meta-value">
+                  {typeof movie.duration === 'object' 
+                    ? `${movie.duration.hours || 0}h ${movie.duration.minutes || 0}m`
+                    : `${movie.duration} min`
+                  }
+                </span>
               </span>
             )}
             {movie.rating !== null && movie.rating !== undefined && (
@@ -179,4 +184,3 @@ const MovieDetail = () => {
 };
 
 export default MovieDetail;
-
