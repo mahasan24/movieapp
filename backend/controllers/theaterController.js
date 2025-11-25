@@ -1,4 +1,5 @@
 import * as theaterModel from "../models/theater.js";
+import { ErrorCodes, sendError } from "../utils/errors.js";
 
 // GET /theaters - Get all theaters
 export const getAllTheaters = async (req, res) => {
@@ -7,7 +8,7 @@ export const getAllTheaters = async (req, res) => {
     res.json(theaters);
   } catch (error) {
     console.error("Error fetching theaters:", error);
-    res.status(500).json({ message: "Error fetching theaters", error: error.message });
+    sendError(res, 500, ErrorCodes.THEATER_FETCH_ERROR, "Error fetching theaters");
   }
 };
 
@@ -16,12 +17,12 @@ export const getTheaterById = async (req, res) => {
   try {
     const theater = await theaterModel.getTheaterById(req.params.id);
     if (!theater) {
-      return res.status(404).json({ message: "Theater not found" });
+      return sendError(res, 404, ErrorCodes.THEATER_NOT_FOUND, "Theater not found");
     }
     res.json(theater);
   } catch (error) {
     console.error("Error fetching theater:", error);
-    res.status(500).json({ message: "Error fetching theater", error: error.message });
+    sendError(res, 500, ErrorCodes.THEATER_FETCH_ERROR, "Error fetching theater");
   }
 };
 
@@ -31,7 +32,7 @@ export const createTheater = async (req, res) => {
     const { name, address, city, phone, total_auditoriums } = req.body;
     
     if (!name) {
-      return res.status(400).json({ message: "Theater name is required" });
+      return sendError(res, 400, ErrorCodes.THEATER_VALIDATION_ERROR, "Theater name is required");
     }
 
     const newTheater = await theaterModel.createTheater({
@@ -45,7 +46,7 @@ export const createTheater = async (req, res) => {
     res.status(201).json(newTheater);
   } catch (error) {
     console.error("Error creating theater:", error);
-    res.status(500).json({ message: "Error creating theater", error: error.message });
+    sendError(res, 500, ErrorCodes.THEATER_CREATE_ERROR, "Error creating theater");
   }
 };
 
@@ -63,13 +64,13 @@ export const updateTheater = async (req, res) => {
     });
     
     if (!updatedTheater) {
-      return res.status(404).json({ message: "Theater not found" });
+      return sendError(res, 404, ErrorCodes.THEATER_NOT_FOUND, "Theater not found");
     }
     
     res.json(updatedTheater);
   } catch (error) {
     console.error("Error updating theater:", error);
-    res.status(500).json({ message: "Error updating theater", error: error.message });
+    sendError(res, 500, ErrorCodes.THEATER_UPDATE_ERROR, "Error updating theater");
   }
 };
 
@@ -79,13 +80,13 @@ export const deleteTheater = async (req, res) => {
     const deletedTheater = await theaterModel.deleteTheater(req.params.id);
     
     if (!deletedTheater) {
-      return res.status(404).json({ message: "Theater not found" });
+      return sendError(res, 404, ErrorCodes.THEATER_NOT_FOUND, "Theater not found");
     }
     
     res.json({ message: "Theater deleted successfully", theater: deletedTheater });
   } catch (error) {
     console.error("Error deleting theater:", error);
-    res.status(500).json({ message: "Error deleting theater", error: error.message });
+    sendError(res, 500, ErrorCodes.THEATER_DELETE_ERROR, "Error deleting theater");
   }
 };
 

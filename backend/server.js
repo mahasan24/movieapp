@@ -7,6 +7,7 @@ import theaterRoutes from "./routes/theaterRoutes.js";
 import auditoriumRoutes from "./routes/auditoriumRoutes.js";
 import showtimeRoutes from "./routes/showtimeRoutes.js";
 import bookingRoutes from "./routes/bookingRoutes.js";
+import adminRoutes from "./routes/adminRoutes.js";
 import pool from "./db/index.js";
 
 dotenv.config();
@@ -22,6 +23,7 @@ app.use("/theaters", theaterRoutes);
 app.use("/auditoriums", auditoriumRoutes);
 app.use("/showtimes", showtimeRoutes);
 app.use("/bookings", bookingRoutes);
+app.use("/admin", adminRoutes);
 
 const PORT = process.env.PORT || 4000;
 
