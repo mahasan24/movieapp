@@ -24,3 +24,38 @@ export const authenticate = async (req, res, next) => {
     return res.status(401).json({ message: "Invalid or expired token" });
   }
 };
+
+// Role-based authorization middleware
+export const requireRole = (requiredRole) => {
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+    
+    // role is boolean: FALSE = user, TRUE = admin
+    const isAdmin = req.user.role === true || req.user.role === 'true' || req.user.role === 1;
+    
+    if (requiredRole === 'admin' && !isAdmin) {
+      return res.status(403).json({ message: "Admin access required" });
+    }
+    
+    next();
+  };
+};
+
+// Middleware to ensure user can only access their own resources
+export const requireOwnership = (req, res, next) => {
+  if (!req.user) {
+    return res.status(401).json({ message: "Authentication required" });
+  }
+  
+  const isAdmin = req.user.role === true || req.user.role === 'true' || req.user.role === 1;
+  const requestedUserId = parseInt(req.params.userId || req.query.userId || req.body.user_id);
+  
+  // Admin can access any resource, user can only access their own
+  if (!isAdmin && requestedUserId && requestedUserId !== req.user.user_id) {
+    return res.status(403).json({ message: "You can only access your own resources" });
+  }
+  
+  next();
+};
