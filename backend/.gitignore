@@ -1,1 +1,7 @@
 node_modules
+
+# Documentation files (for internal use only)
+*_IMPLEMENTATION.md
+TEAMMATE_*.md
+ERROR_CODES.md
+API_CONTRACTS.md
