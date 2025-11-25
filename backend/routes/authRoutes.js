@@ -2,6 +2,7 @@ import express from "express";
 import jwt from "jsonwebtoken";
 import { createUser, getUserByEmail } from "../models/user.js";
 import { comparePassword } from "../models/user.js";
+import { authenticate } from "../middleware/auth.js";
 
 const router = express.Router();
 
@@ -44,11 +45,22 @@ router.post("/login", async (req, res) => {
   }
 });
 
-// GET /auth/me
-router.get("/me", async (req, res) => {
-  // Expect authenticate middleware to attach req.user
-  if (!req.user) return res.status(401).json({ message: "Not authenticated" });
-  res.json(req.user);
+// GET /auth/me - Validate current user session
+router.get("/me", authenticate, async (req, res) => {
+  try {
+    // authenticate middleware attaches req.user
+    const safeUser = {
+      user_id: req.user.user_id,
+      name: req.user.name,
+      email: req.user.email,
+      role: req.user.role,
+      created_at: req.user.created_at
+    };
+    res.json(safeUser);
+  } catch (error) {
+    console.error("Error in /auth/me:", error);
+    res.status(500).json({ message: "Error fetching user" });
+  }
 });
 
 export default router;

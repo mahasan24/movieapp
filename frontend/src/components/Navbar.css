@@ -46,6 +46,83 @@
   gap: 1rem;
 }
 
+.nav-link {
+  color: #495057;
+  text-decoration: none;
+  font-size: 0.95rem;
+  font-weight: 500;
+  padding: 0.5rem 0.75rem;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.nav-link:hover {
+  background: #f8f9fa;
+  color: #f98012;
+}
+
+.language-switcher {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  background: #f8f9fa;
+  border-radius: 6px;
+  border: 1px solid #dee2e6;
+}
+
+.lang-btn {
+  background: transparent;
+  border: none;
+  color: #6c757d;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 0.25rem 0.5rem;
+  cursor: pointer;
+  transition: color 0.2s;
+  border-radius: 4px;
+}
+
+.lang-btn:hover {
+  color: #495057;
+  background: #e9ecef;
+}
+
+.lang-btn.active {
+  color: #f98012;
+  font-weight: 700;
+}
+
+.lang-divider {
+  color: #dee2e6;
+  font-weight: 300;
+}
+
+.admin-link,
+.account-link {
+  color: #495057;
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 500;
+  padding: 0.4rem 0.8rem;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.admin-link {
+  background: #ffc107;
+  color: #000;
+}
+
+.admin-link:hover {
+  background: #ffb300;
+}
+
+.account-link:hover {
+  background: #f8f9fa;
+  color: #f98012;
+}
+
 .search-form {
   display: flex;
   align-items: center;

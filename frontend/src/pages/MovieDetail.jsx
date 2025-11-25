@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import './MovieDetail.css'
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:4000';
 
 const MovieDetail = () => {
+  const { t } = useTranslation();
   const { id } = useParams();
   const navigate = useNavigate();
   const [movie, setMovie] = useState(null);
@@ -39,7 +41,7 @@ const MovieDetail = () => {
   }, [id]);
 
   const handleBackClick = () => {
-    navigate('/home');
+    navigate('/browse');
   };
 
   if (loading) {
@@ -47,7 +49,7 @@ const MovieDetail = () => {
       <div className="movie-detail-container">
         <div className="loading-state">
           <div className="loading-spinner"></div>
-          <p>Loading movie details...</p>
+          <p>{t('movieDetail.loadingMovie')}</p>
         </div>
       </div>
     );
@@ -58,10 +60,10 @@ const MovieDetail = () => {
       <div className="movie-detail-container">
         <div className="error-state">
           <span className="error-icon">⚠️</span>
-          <h2>Error Loading Movie</h2>
+          <h2>{t('movieDetail.errorLoading')}</h2>
           <p className="error-message">{error}</p>
           <button className="back-btn" onClick={handleBackClick}>
-            ← Back to Movies
+            {t('movieDetail.backButton')}
           </button>
         </div>
       </div>
@@ -73,10 +75,10 @@ const MovieDetail = () => {
       <div className="movie-detail-container">
         <div className="error-state">
           <span className="error-icon">🎬</span>
-          <h2>Movie Not Found</h2>
-          <p className="error-message">The movie you're looking for doesn't exist.</p>
+          <h2>{t('movieDetail.notFound')}</h2>
+          <p className="error-message">{t('movieDetail.notFound')}</p>
           <button className="back-btn" onClick={handleBackClick}>
-            ← Back to Movies
+            {t('movieDetail.backButton')}
           </button>
         </div>
       </div>
@@ -86,7 +88,7 @@ const MovieDetail = () => {
   return (
     <div className="movie-detail-container">
       <button className="back-btn" onClick={handleBackClick}>
-        ← Back to Movies
+        {t('movieDetail.backButton')}
       </button>
 
       <div className="movie-detail-content">
@@ -112,21 +114,21 @@ const MovieDetail = () => {
             {movie.year && (
               <span className="meta-item">
                 <span className="meta-icon">📅</span>
-                <span className="meta-label">Year:</span>
+                <span className="meta-label">{t('movieDetail.year')}:</span>
                 <span className="meta-value">{movie.year}</span>
               </span>
             )}
             {movie.duration && (
               <span className="meta-item">
                 <span className="meta-icon">⏱️</span>
-                <span className="meta-label">Duration:</span>
-                <span className="meta-value">{movie.duration} min</span>
+                <span className="meta-label">{t('movieDetail.duration')}:</span>
+                <span className="meta-value">{movie.duration} {t('movieDetail.minutes')}</span>
               </span>
             )}
             {movie.rating !== null && movie.rating !== undefined && (
               <span className="meta-item rating">
                 <span className="meta-icon">⭐</span>
-                <span className="meta-label">Rating:</span>
+                <span className="meta-label">{t('movieDetail.rating')}:</span>
                 <span className="meta-value highlight">{movie.rating}/10</span>
               </span>
             )}
@@ -134,7 +136,7 @@ const MovieDetail = () => {
 
           {movie.genre && (
             <div className="detail-section">
-              <h3 className="section-title">Genre</h3>
+              <h3 className="section-title">{t('movieDetail.genre')}</h3>
               <div className="genre-tags">
                 {movie.genre.split(',').map((g, idx) => (
                   <span key={idx} className="genre-tag">{g.trim()}</span>
@@ -152,14 +154,14 @@ const MovieDetail = () => {
 
           {movie.director && (
             <div className="detail-section">
-              <h3 className="section-title">Director</h3>
+              <h3 className="section-title">{t('movieDetail.director')}</h3>
               <p className="info-text">{movie.director}</p>
             </div>
           )}
 
           {movie.cast && (
             <div className="detail-section">
-              <h3 className="section-title">Cast</h3>
+              <h3 className="section-title">{t('movieDetail.cast')}</h3>
               <p className="info-text">{movie.cast}</p>
             </div>
           )}
