@@ -272,21 +272,21 @@ export const deleteMovie = async (id) => {
   return result.rows[0];
 };
 
-// Featured movies - supports both TMDB flags and rating-based fallback
+// Featured movies - high rating and recent years
 export const getFeaturedMovies = async (limit = 10, language = null) => {
   let query = `
     SELECT * FROM movies 
-    WHERE (is_featured = true OR (rating >= 8.0 AND year >= 2010))
+    WHERE rating >= 8.0 AND year >= 2010
   `;
   const params = [];
   
   if (language) {
     query += ` AND language = $1`;
     params.push(language);
-    query += ` ORDER BY popularity DESC, rating DESC, created_at DESC LIMIT $2`;
+    query += ` ORDER BY rating DESC, year DESC LIMIT $2`;
     params.push(limit);
   } else {
-    query += ` ORDER BY popularity DESC, rating DESC, created_at DESC LIMIT $1`;
+    query += ` ORDER BY rating DESC, year DESC LIMIT $1`;
     params.push(limit);
   }
   
@@ -294,21 +294,21 @@ export const getFeaturedMovies = async (limit = 10, language = null) => {
   return result.rows;
 };
 
-// Trending movies - supports both TMDB flags and date-based fallback
+// Trending movies - recent releases with good ratings
 export const getTrendingMovies = async (limit = 10, language = null) => {
   let query = `
     SELECT * FROM movies 
-    WHERE (is_trending_managed = true OR year >= 2015)
+    WHERE year >= 2015
   `;
   const params = [];
   
   if (language) {
     query += ` AND language = $1`;
     params.push(language);
-    query += ` ORDER BY popularity DESC, created_at DESC, rating DESC LIMIT $2`;
+    query += ` ORDER BY year DESC, rating DESC LIMIT $2`;
     params.push(limit);
   } else {
-    query += ` ORDER BY popularity DESC, created_at DESC, rating DESC LIMIT $1`;
+    query += ` ORDER BY year DESC, rating DESC LIMIT $1`;
     params.push(limit);
   }
   
@@ -319,7 +319,8 @@ export const getTrendingMovies = async (limit = 10, language = null) => {
 // Now showing movies - movies with active showtimes
 export const getNowShowingMovies = async (language = null) => {
   let query = `
-    SELECT DISTINCT m.* 
+    SELECT DISTINCT m.id, m.title, m.description, m.genre, m.year, m.rating, 
+           m.poster_url, m.duration, m.director, m."cast", m.created_at
     FROM movies m
     INNER JOIN showtimes s ON m.id = s.movie_id
     WHERE s.show_date >= CURRENT_DATE
@@ -331,7 +332,7 @@ export const getNowShowingMovies = async (language = null) => {
     params.push(language);
   }
   
-  query += ` ORDER BY s.show_date ASC, m.rating DESC, m.title ASC LIMIT 20`;
+  query += ` ORDER BY m.rating DESC, m.year DESC LIMIT 20`;
   
   const result = await pool.query(query, params);
   return result.rows;
