@@ -97,32 +97,6 @@ const Home = () => {
         </section>
       )}
 
-      {/* Trending Content Section */}
-      <section className="trending-section">
-        <div className="section-header">
-          <h2 className="section-title">{t('landing.trendingContent')}</h2>
-        </div>
-        <div className="trending-grid">
-          <Link to="/browse?sort=featured" className="trending-card">
-            <span className="trending-badge badge-blue">FILM INSIDER</span>
-            <h3 className="trending-title">{t('landing.behindScenes')}</h3>
-            <p className="trending-description">{t('landing.behindScenesDesc')}</p>
-          </Link>
-          
-          <Link to="/browse?sort=trending" className="trending-card">
-            <span className="trending-badge badge-cyan">CRITIC'S CHOICE</span>
-            <h3 className="trending-title">{t('landing.topPicks')}</h3>
-            <p className="trending-description">{t('landing.topPicksDesc')}</p>
-          </Link>
-          
-          <Link to="/browse?sort=new" className="trending-card">
-            <span className="trending-badge badge-orange">MOVIE BUFF</span>
-            <h3 className="trending-title">{t('landing.newReleases')}</h3>
-            <p className="trending-description">{t('landing.newReleasesDesc')}</p>
-          </Link>
-        </div>
-      </section>
-
       {/* Now Showing Section */}
       {nowShowing.length > 0 && (
         <section className="content-section now-showing-section">
