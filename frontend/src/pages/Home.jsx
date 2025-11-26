@@ -1,221 +1,173 @@
-import React, { useEffect, useState, useMemo } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import React, { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import './Home.css'
 import MovieCard from '../components/MovieCard'
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:4000';
 
 const Home = () => {
-  const [movies, setMovies] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const { t } = useTranslation();
+  const [featured, setFeatured] = useState([]);
+  const [trending, setTrending] = useState([]);
+  const [nowShowing, setNowShowing] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [searchParams, setSearchParams] = useSearchParams();
-  const searchQuery = searchParams.get('search') || '';
-  const [localSearch, setLocalSearch] = useState(searchQuery);
-  const [selectedGenre, setSelectedGenre] = useState('');
-  const [selectedLanguage, setSelectedLanguage] = useState('');
 
-  // Fetch movies on mount
   useEffect(() => {
-    const fetchMovies = async () => {
+    const fetchHomeContent = async () => {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch(`${API_BASE}/movies`);
-        if (!res.ok) throw new Error(`Server responded ${res.status}`);
-        const data = await res.json();
-        setMovies(data || []);
+        const [featuredRes, trendingRes, nowShowingRes] = await Promise.all([
+          fetch(`${API_BASE}/movies/featured?limit=5`),
+          fetch(`${API_BASE}/movies/trending?limit=5`),
+          fetch(`${API_BASE}/movies/now-showing`)
+        ]);
+
+        if (featuredRes.ok) {
+          const data = await featuredRes.json();
+          setFeatured(data.slice(0, 5));
+        }
+        if (trendingRes.ok) {
+          const data = await trendingRes.json();
+          setTrending(data.slice(0, 5));
+        }
+        if (nowShowingRes.ok) {
+          const data = await nowShowingRes.json();
+          setNowShowing(data.slice(0, 5));
+        }
       } catch (err) {
-        console.error('Failed to fetch movies', err);
-        setError('Failed to load movies');
+        console.error('Failed to fetch home content', err);
+        setError(t('landing.errorLoading'));
       } finally {
         setLoading(false);
       }
-    }
-    fetchMovies();
-  }, []);
+    };
 
-  // Debounced search effect
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (localSearch !== searchQuery) {
-        if (localSearch.trim()) {
-          setSearchParams({ search: localSearch.trim() });
-        } else {
-          setSearchParams({});
-        }
-      }
-    }, 500); // 500ms debounce
+    fetchHomeContent();
+  }, [t]);
 
-    return () => clearTimeout(timer);
-  }, [localSearch, searchQuery, setSearchParams]);
-
-  // Get unique genres from movies
-  const availableGenres = useMemo(() => {
-    const genres = new Set();
-    movies.forEach(movie => {
-      if (movie.genre) {
-        // Split by comma in case there are multiple genres
-        movie.genre.split(',').forEach(g => genres.add(g.trim()));
-      }
-    });
-    return Array.from(genres).sort();
-  }, [movies]);
-
-  // Filter movies based on search query, genre, and language
-  const filteredMovies = useMemo(() => {
-    return movies.filter(movie => {
-      // Search filter
-      const matchesSearch = !searchQuery || 
-        movie.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        movie.genre?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        movie.description?.toLowerCase().includes(searchQuery.toLowerCase());
-
-      // Genre filter
-      const matchesGenre = !selectedGenre || 
-        movie.genre?.toLowerCase().includes(selectedGenre.toLowerCase());
-
-      // Language filter (placeholder - can be connected to backend later)
-      const matchesLanguage = !selectedLanguage; // Always true for now
-
-      return matchesSearch && matchesGenre && matchesLanguage;
-    });
-  }, [movies, searchQuery, selectedGenre, selectedLanguage]);
-
-  const handleSearchChange = (e) => {
-    setLocalSearch(e.target.value);
-  };
-
-  const handleGenreChange = (e) => {
-    setSelectedGenre(e.target.value);
-  };
-
-  const handleLanguageChange = (e) => {
-    setSelectedLanguage(e.target.value);
-  };
-
-  const clearFilters = () => {
-    setSelectedGenre('');
-    setSelectedLanguage('');
-  };
-
-  const hasActiveFilters = selectedGenre || selectedLanguage;
-
-  return (
-    <div className="home-root">
-      <div className="home-header">
-        <h1>Discover Movies</h1>
-      </div>
-
-      {/* Filters Section */}
-      <div className="filters-section">
-        <div className="filters-container">
-          <div className="filter-group">
-            <label htmlFor="genre-filter" className="filter-label">
-              <span className="filter-icon">🎭</span>
-              <span>Filter by Genre</span>
-            </label>
-            <select
-              id="genre-filter"
-              className="filter-select"
-              value={selectedGenre}
-              onChange={handleGenreChange}
-            >
-              <option value="">All Genres</option>
-              {availableGenres.map(genre => (
-                <option key={genre} value={genre}>{genre}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="filter-group language-filter-group">
-            <label htmlFor="language-filter" className="filter-label">
-              <span className="filter-icon">🌐</span>
-              <span>Filter by Language</span>
-              <span className="filter-badge">Coming Soon</span>
-            </label>
-            <select
-              id="language-filter"
-              className="filter-select disabled"
-              value={selectedLanguage}
-              onChange={handleLanguageChange}
-              disabled
-              title="Language filter coming soon"
-            >
-              <option value="">All Languages</option>
-              <option value="en">English</option>
-              <option value="es">Spanish</option>
-              <option value="fr">French</option>
-            </select>
-          </div>
-
-          {hasActiveFilters && (
-            <button className="clear-filters-btn" onClick={clearFilters}>
-              <span>✕</span> Clear Filters
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Results Summary */}
-      {hasActiveFilters && (
-        <div className="results-summary">
-          <p>
-            Showing <strong>{filteredMovies.length}</strong> {filteredMovies.length === 1 ? 'movie' : 'movies'}
-            {searchQuery && ` for "${searchQuery}"`}
-            {selectedGenre && ` in ${selectedGenre}`}
-          </p>
-        </div>
-      )}
-
-      {/* Loading State */}
-      {loading && (
+  if (loading) {
+    return (
+      <div className="landing-page">
         <div className="loading-state">
           <div className="loading-spinner"></div>
-          <p>Loading movies...</p>
+          <p>{t('landing.loadingContent')}</p>
         </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="landing-page">
+      {/* Hero Section */}
+      <section className="hero-section">
+        <div className="hero-overlay"></div>
+        <div className="hero-content">
+          <h1 className="hero-title">{t('landing.heroTitle')}</h1>
+          <p className="hero-subtitle">{t('landing.heroSubtitle')}</p>
+          <div className="hero-buttons">
+            <Link to="/browse" className="hero-btn btn-primary">
+              {t('landing.exploreButton')}
+            </Link>
+            <Link to="/browse" className="hero-btn btn-secondary">
+              {t('landing.browseButton')}
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Featured Movies Section */}
+      {featured.length > 0 && (
+        <section className="content-section featured-section">
+          <div className="section-header">
+            <h2 className="section-title">{t('landing.featured')}</h2>
+          </div>
+          <div className="movies-grid">
+            {featured.map(movie => (
+              <MovieCard key={movie.id} movie={movie} showGenreBadge />
+            ))}
+          </div>
+          <div className="section-footer">
+            <Link to="/browse" className="view-all-btn">
+              {t('landing.viewAll')} →
+            </Link>
+          </div>
+        </section>
       )}
 
-      {/* Error State */}
+      {/* Trending Content Section */}
+      <section className="trending-section">
+        <div className="section-header">
+          <h2 className="section-title">{t('landing.trendingContent')}</h2>
+        </div>
+        <div className="trending-grid">
+          <Link to="/browse?sort=featured" className="trending-card">
+            <span className="trending-badge badge-blue">FILM INSIDER</span>
+            <h3 className="trending-title">{t('landing.behindScenes')}</h3>
+            <p className="trending-description">{t('landing.behindScenesDesc')}</p>
+          </Link>
+          
+          <Link to="/browse?sort=trending" className="trending-card">
+            <span className="trending-badge badge-cyan">CRITIC'S CHOICE</span>
+            <h3 className="trending-title">{t('landing.topPicks')}</h3>
+            <p className="trending-description">{t('landing.topPicksDesc')}</p>
+          </Link>
+          
+          <Link to="/browse?sort=new" className="trending-card">
+            <span className="trending-badge badge-orange">MOVIE BUFF</span>
+            <h3 className="trending-title">{t('landing.newReleases')}</h3>
+            <p className="trending-description">{t('landing.newReleasesDesc')}</p>
+          </Link>
+        </div>
+      </section>
+
+      {/* Now Showing Section */}
+      {nowShowing.length > 0 && (
+        <section className="content-section now-showing-section">
+          <div className="section-header">
+            <h2 className="section-title">{t('landing.nowShowing')}</h2>
+          </div>
+          <div className="movies-grid">
+            {nowShowing.slice(0, 5).map(movie => (
+              <MovieCard key={movie.id} movie={movie} showGenreBadge />
+            ))}
+          </div>
+          <div className="section-footer">
+            <Link to="/browse" className="view-all-btn">
+              {t('landing.viewAll')} →
+            </Link>
+          </div>
+        </section>
+      )}
+
+      {/* Trending Movies (as "Must-Watch") */}
+      {trending.length > 0 && (
+        <section className="content-section must-watch-section">
+          <div className="section-header">
+            <h2 className="section-title">{t('landing.mustWatch')}</h2>
+          </div>
+          <div className="movies-grid">
+            {trending.map(movie => (
+              <MovieCard key={movie.id} movie={movie} showRating />
+            ))}
+          </div>
+          <div className="section-footer">
+            <Link to="/browse" className="view-all-btn">
+              {t('landing.viewAll')} →
+            </Link>
+          </div>
+        </section>
+      )}
+
       {error && (
-        <div className="error-state">
-          <span className="error-icon">⚠️</span>
-          <p className="error-message">{error}</p>
-          <button className="retry-btn" onClick={() => window.location.reload()}>
-            Try Again
-          </button>
-        </div>
-      )}
-
-      {/* Movies Grid */}
-      {!loading && !error && (
-        <div className="cards-grid">
-          {filteredMovies.length === 0 ? (
-            <div className="empty-state">
-              <span className="empty-icon">🎬</span>
-              <h2 className="empty-title">
-                {searchQuery || selectedGenre ? 'No movies found' : 'No movies available'}
-              </h2>
-              <p className="empty-description">
-                {searchQuery || selectedGenre
-                  ? 'Try adjusting your search or filters to find what you\'re looking for.'
-                  : 'Check back later for new movies.'}
-              </p>
-              {hasActiveFilters && (
-                <button className="empty-action-btn" onClick={clearFilters}>
-                  Clear Filters
-                </button>
-              )}
-            </div>
-          ) : (
-            filteredMovies.map(movie => (
-              <MovieCard key={movie.id} movie={movie} />
-            ))
-          )}
+        <div className="error-message">
+          <p>{error}</p>
         </div>
       )}
     </div>
-  )
-}
+  );
+};
 
-export default Home
+export default Home;
