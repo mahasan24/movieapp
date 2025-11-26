@@ -1,4 +1,5 @@
 import * as showtimeModel from "../models/showtime.js";
+import { ErrorCodes, sendError } from "../utils/errors.js";
 
 // GET /showtimes - Get showtimes with filters
 // Query params: movie_id, theater_id, date, auditorium_id
@@ -16,7 +17,7 @@ export const getShowtimes = async (req, res) => {
     res.json(showtimes);
   } catch (error) {
     console.error("Error fetching showtimes:", error);
-    res.status(500).json({ message: "Error fetching showtimes", error: error.message });
+    sendError(res, 500, ErrorCodes.SHOWTIME_FETCH_ERROR, "Error fetching showtimes");
   }
 };
 
@@ -25,12 +26,12 @@ export const getShowtimeById = async (req, res) => {
   try {
     const showtime = await showtimeModel.getShowtimeById(req.params.id);
     if (!showtime) {
-      return res.status(404).json({ message: "Showtime not found" });
+      return sendError(res, 404, ErrorCodes.SHOWTIME_NOT_FOUND, "Showtime not found");
     }
     res.json(showtime);
   } catch (error) {
     console.error("Error fetching showtime:", error);
-    res.status(500).json({ message: "Error fetching showtime", error: error.message });
+    sendError(res, 500, ErrorCodes.SHOWTIME_FETCH_ERROR, "Error fetching showtime");
   }
 };
 
@@ -40,17 +41,16 @@ export const createShowtime = async (req, res) => {
     const { movie_id, auditorium_id, show_date, show_time, price, available_seats } = req.body;
     
     if (!movie_id || !auditorium_id || !show_date || !show_time || price === undefined || available_seats === undefined) {
-      return res.status(400).json({ 
-        message: "movie_id, auditorium_id, show_date, show_time, price, and available_seats are required" 
-      });
+      return sendError(res, 400, ErrorCodes.SHOWTIME_VALIDATION_ERROR,
+        "movie_id, auditorium_id, show_date, show_time, price, and available_seats are required");
     }
 
     if (price < 0) {
-      return res.status(400).json({ message: "Price must be non-negative" });
+      return sendError(res, 400, ErrorCodes.SHOWTIME_VALIDATION_ERROR, "Price must be non-negative");
     }
 
     if (available_seats < 0) {
-      return res.status(400).json({ message: "Available seats must be non-negative" });
+      return sendError(res, 400, ErrorCodes.SHOWTIME_VALIDATION_ERROR, "Available seats must be non-negative");
     }
 
     const newShowtime = await showtimeModel.createShowtime({
@@ -65,7 +65,7 @@ export const createShowtime = async (req, res) => {
     res.status(201).json(newShowtime);
   } catch (error) {
     console.error("Error creating showtime:", error);
-    res.status(500).json({ message: "Error creating showtime", error: error.message });
+    sendError(res, 500, ErrorCodes.SHOWTIME_CREATE_ERROR, "Error creating showtime");
   }
 };
 
@@ -84,13 +84,13 @@ export const updateShowtime = async (req, res) => {
     });
     
     if (!updatedShowtime) {
-      return res.status(404).json({ message: "Showtime not found" });
+      return sendError(res, 404, ErrorCodes.SHOWTIME_NOT_FOUND, "Showtime not found");
     }
     
     res.json(updatedShowtime);
   } catch (error) {
     console.error("Error updating showtime:", error);
-    res.status(500).json({ message: "Error updating showtime", error: error.message });
+    sendError(res, 500, ErrorCodes.SHOWTIME_UPDATE_ERROR, "Error updating showtime");
   }
 };
 
@@ -100,13 +100,13 @@ export const deleteShowtime = async (req, res) => {
     const deletedShowtime = await showtimeModel.deleteShowtime(req.params.id);
     
     if (!deletedShowtime) {
-      return res.status(404).json({ message: "Showtime not found" });
+      return sendError(res, 404, ErrorCodes.SHOWTIME_NOT_FOUND, "Showtime not found");
     }
     
     res.json({ message: "Showtime deleted successfully", showtime: deletedShowtime });
   } catch (error) {
     console.error("Error deleting showtime:", error);
-    res.status(500).json({ message: "Error deleting showtime", error: error.message });
+    sendError(res, 500, ErrorCodes.SHOWTIME_DELETE_ERROR, "Error deleting showtime");
   }
 };
 
