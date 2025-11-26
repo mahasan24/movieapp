@@ -116,11 +116,11 @@ const Home = () => {
         </section>
       )}
 
-      {/* Trending Movies (as "Must-Watch") */}
+      {/* Trending Movies */}
       {trending.length > 0 && (
-        <section className="content-section must-watch-section">
+        <section className="content-section trending-movies-section">
           <div className="section-header">
-            <h2 className="section-title">{t('landing.mustWatch')}</h2>
+            <h2 className="section-title">{t('landing.trending')}</h2>
           </div>
           <div className="movies-grid">
             {trending.map(movie => (
