@@ -272,42 +272,51 @@ export const deleteMovie = async (id) => {
   return result.rows[0];
 };
 
-export const getFeaturedMovies = async (language = null) => {
+// Featured movies - supports both TMDB flags and rating-based fallback
+export const getFeaturedMovies = async (limit = 10, language = null) => {
   let query = `
     SELECT * FROM movies 
-    WHERE is_featured = true
+    WHERE (is_featured = true OR (rating >= 8.0 AND year >= 2010))
   `;
   const params = [];
   
   if (language) {
     query += ` AND language = $1`;
     params.push(language);
+    query += ` ORDER BY popularity DESC, rating DESC, created_at DESC LIMIT $2`;
+    params.push(limit);
+  } else {
+    query += ` ORDER BY popularity DESC, rating DESC, created_at DESC LIMIT $1`;
+    params.push(limit);
   }
-  
-  query += ` ORDER BY popularity DESC, created_at DESC LIMIT 10`;
   
   const result = await pool.query(query, params);
   return result.rows;
 };
 
-export const getTrendingMovies = async (language = null) => {
+// Trending movies - supports both TMDB flags and date-based fallback
+export const getTrendingMovies = async (limit = 10, language = null) => {
   let query = `
     SELECT * FROM movies 
-    WHERE is_trending_managed = true
+    WHERE (is_trending_managed = true OR year >= 2015)
   `;
   const params = [];
   
   if (language) {
     query += ` AND language = $1`;
     params.push(language);
+    query += ` ORDER BY popularity DESC, created_at DESC, rating DESC LIMIT $2`;
+    params.push(limit);
+  } else {
+    query += ` ORDER BY popularity DESC, created_at DESC, rating DESC LIMIT $1`;
+    params.push(limit);
   }
-  
-  query += ` ORDER BY popularity DESC, created_at DESC LIMIT 10`;
   
   const result = await pool.query(query, params);
   return result.rows;
 };
 
+// Now showing movies - movies with active showtimes
 export const getNowShowingMovies = async (language = null) => {
   let query = `
     SELECT DISTINCT m.* 
@@ -322,7 +331,7 @@ export const getNowShowingMovies = async (language = null) => {
     params.push(language);
   }
   
-  query += ` ORDER BY s.show_date ASC, m.title ASC LIMIT 20`;
+  query += ` ORDER BY s.show_date ASC, m.rating DESC, m.title ASC LIMIT 20`;
   
   const result = await pool.query(query, params);
   return result.rows;

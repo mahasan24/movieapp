@@ -4,13 +4,15 @@ import {
   getUserBookings,
   getBookingById,
   createBooking,
-  cancelBooking
+  cancelBooking,
+  getMyBookings
 } from "../controllers/bookingController.js";
 import { authenticate } from "../middleware/auth.js";
 
 const router = express.Router();
 
 // All booking routes require authentication
+router.get("/me", authenticate, getMyBookings); // Get current user's bookings (new)
 router.get("/", authenticate, getBookings); // Admin sees all, users see their own
 router.get("/user/:userId", authenticate, getUserBookings); // User-specific bookings
 router.get("/:id", authenticate, getBookingById); // Single booking (ownership checked in controller)
