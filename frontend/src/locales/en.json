@@ -59,7 +59,9 @@
     "backButton": "← Back to Movies",
     "loadingMovie": "Loading movie details...",
     "errorLoading": "Failed to load movie details",
-    "notFound": "Movie not found"
+    "notFound": "Movie not found",
+    "bookTickets": "Book Tickets",
+    "addToFavorites": "Add to Favorites"
   },
   "auth": {
     "login": "Login",

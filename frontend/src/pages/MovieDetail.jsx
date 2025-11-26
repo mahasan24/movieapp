@@ -168,10 +168,10 @@ const MovieDetail = () => {
 
           <div className="action-buttons">
             <button className="action-btn primary">
-              🎟️ Book Tickets
+              🎟️ {t('movieDetail.bookTickets')}
             </button>
             <button className="action-btn secondary">
-              ❤️ Add to Favorites
+              ❤️ {t('movieDetail.addToFavorites')}
             </button>
           </div>
         </div>

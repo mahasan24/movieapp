@@ -59,7 +59,9 @@
     "backButton": "← Takaisin elokuviin",
     "loadingMovie": "Ladataan elokuvan tietoja...",
     "errorLoading": "Elokuvan tietojen lataaminen epäonnistui",
-    "notFound": "Elokuvaa ei löytynyt"
+    "notFound": "Elokuvaa ei löytynyt",
+    "bookTickets": "Varaa lippuja",
+    "addToFavorites": "Lisää suosikkeihin"
   },
   "auth": {
     "login": "Kirjaudu sisään",
