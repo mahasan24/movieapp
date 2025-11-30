@@ -104,7 +104,14 @@
     "emailSent": "Vahvistusviesti lähetetty osoitteeseesi",
     "close": "Sulje",
     "loadingShowtimes": "Ladataan näytösaikoja...",
-    "stripeNotConfigured": "Maksujärjestelmä ei ole käytössä. Ota yhteyttä tukeen."
+    "stripeNotConfigured": "Maksujärjestelmä ei ole käytössä. Ota yhteyttä tukeen.",
+    "selectShowtimeError": "Valitse näytösaika",
+    "nameRequired": "Nimi vaaditaan",
+    "nameTooShort": "Nimen on oltava vähintään 2 merkkiä",
+    "emailRequired": "Sähköposti vaaditaan",
+    "emailInvalid": "Anna kelvollinen sähköpostiosoite",
+    "seatsMinimum": "Paikkojen määrän on oltava vähintään 1",
+    "seatsExceeded": "Ei tarpeeksi vapaita paikkoja"
   },
   "auth": {
     "login": "Kirjaudu sisään",

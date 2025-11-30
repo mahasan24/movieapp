@@ -33,13 +33,45 @@ const ShowtimeSelection = ({ showtimes, onNext, onClose }) => {
   const [customerName, setCustomerName] = useState('');
   const [customerEmail, setCustomerEmail] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
+  const [errors, setErrors] = useState({});
+
+  const validateForm = () => {
+    const newErrors = {};
+
+    if (!selectedShowtime) {
+      newErrors.showtime = t('booking.selectShowtimeError');
+    }
+
+    if (!customerName.trim()) {
+      newErrors.name = t('booking.nameRequired');
+    } else if (customerName.trim().length < 2) {
+      newErrors.name = t('booking.nameTooShort');
+    }
+
+    if (!customerEmail.trim()) {
+      newErrors.email = t('booking.emailRequired');
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmail)) {
+      newErrors.email = t('booking.emailInvalid');
+    }
+
+    if (numSeats < 1) {
+      newErrors.seats = t('booking.seatsMinimum');
+    } else if (selectedShowtime && numSeats > selectedShowtime.available_seats) {
+      newErrors.seats = t('booking.seatsExceeded');
+    }
+
+    return newErrors;
+  };
 
   const handleNext = () => {
-    if (!selectedShowtime || !customerName || !customerEmail || numSeats < 1) {
-      alert(t('booking.fillAllFields'));
+    const validationErrors = validateForm();
+    
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors);
       return;
     }
 
+    setErrors({});
     const totalPrice = selectedShowtime.price * numSeats;
 
     onNext({
@@ -88,6 +120,10 @@ const ShowtimeSelection = ({ showtimes, onNext, onClose }) => {
             ))}
           </div>
 
+          {!selectedShowtime && errors.showtime && (
+            <div className="form-error">{errors.showtime}</div>
+          )}
+
           {selectedShowtime && (
             <div className="customer-info-form">
               <h3>{t('booking.yourInformation')}</h3>
@@ -97,10 +133,15 @@ const ShowtimeSelection = ({ showtimes, onNext, onClose }) => {
                 <input
                   type="text"
                   value={customerName}
-                  onChange={(e) => setCustomerName(e.target.value)}
+                  onChange={(e) => {
+                    setCustomerName(e.target.value);
+                    if (errors.name) setErrors({ ...errors, name: null });
+                  }}
                   placeholder={t('booking.namePlaceholder')}
+                  className={errors.name ? 'input-error' : ''}
                   required
                 />
+                {errors.name && <div className="form-error">{errors.name}</div>}
               </div>
 
               <div className="form-group">
@@ -108,10 +149,15 @@ const ShowtimeSelection = ({ showtimes, onNext, onClose }) => {
                 <input
                   type="email"
                   value={customerEmail}
-                  onChange={(e) => setCustomerEmail(e.target.value)}
+                  onChange={(e) => {
+                    setCustomerEmail(e.target.value);
+                    if (errors.email) setErrors({ ...errors, email: null });
+                  }}
                   placeholder={t('booking.emailPlaceholder')}
+                  className={errors.email ? 'input-error' : ''}
                   required
                 />
+                {errors.email && <div className="form-error">{errors.email}</div>}
               </div>
 
               <div className="form-group">
@@ -131,9 +177,14 @@ const ShowtimeSelection = ({ showtimes, onNext, onClose }) => {
                   min="1"
                   max={selectedShowtime.available_seats}
                   value={numSeats}
-                  onChange={(e) => setNumSeats(parseInt(e.target.value))}
+                  onChange={(e) => {
+                    setNumSeats(parseInt(e.target.value) || 1);
+                    if (errors.seats) setErrors({ ...errors, seats: null });
+                  }}
+                  className={errors.seats ? 'input-error' : ''}
                   required
                 />
+                {errors.seats && <div className="form-error">{errors.seats}</div>}
               </div>
 
               <div className="booking-summary">

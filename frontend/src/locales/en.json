@@ -104,7 +104,14 @@
     "emailSent": "Confirmation email sent to your address",
     "close": "Close",
     "loadingShowtimes": "Loading showtimes...",
-    "stripeNotConfigured": "Payment system is not configured. Please contact support."
+    "stripeNotConfigured": "Payment system is not configured. Please contact support.",
+    "selectShowtimeError": "Please select a showtime",
+    "nameRequired": "Name is required",
+    "nameTooShort": "Name must be at least 2 characters",
+    "emailRequired": "Email is required",
+    "emailInvalid": "Please enter a valid email address",
+    "seatsMinimum": "Number of seats must be at least 1",
+    "seatsExceeded": "Not enough seats available"
   },
   "auth": {
     "login": "Login",
