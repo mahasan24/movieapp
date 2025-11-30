@@ -134,6 +134,7 @@
     "loadingBookings": "Ladataan varauksia...",
     "errorLoadingBookings": "Varausten lataaminen epäonnistui",
     "noBookings": "Ei varauksia vielä",
+    "noBookingsInCategory": "Ei varauksia tässä kategoriassa",
     "bookingId": "Varausnumero",
     "movie": "Elokuva",
     "theater": "Teatteri",
@@ -143,7 +144,14 @@
     "cancelBooking": "Peruuta varaus",
     "confirmed": "Vahvistettu",
     "cancelled": "Peruutettu",
-    "completed": "Valmis"
+    "completed": "Valmis",
+    "activeBookings": "Aktiiviset",
+    "pastBookings": "Menneet",
+    "cancelledBookings": "Peruutetut",
+    "confirmCancel": "Haluatko varmasti peruuttaa tämän varauksen? Saat hyvityksen.",
+    "bookingCancelled": "Varaus peruutettu onnistuneesti! Hyvitys käsitellään.",
+    "cancelFailed": "Varauksen peruuttaminen epäonnistui. Yritä uudelleen.",
+    "cancelling": "Peruutetaan"
   },
   "admin": {
     "title": "Hallintapaneeli",

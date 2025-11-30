@@ -134,6 +134,7 @@
     "loadingBookings": "Loading bookings...",
     "errorLoadingBookings": "Failed to load bookings",
     "noBookings": "No bookings yet",
+    "noBookingsInCategory": "No bookings in this category",
     "bookingId": "Booking ID",
     "movie": "Movie",
     "theater": "Theater",
@@ -143,7 +144,14 @@
     "cancelBooking": "Cancel Booking",
     "confirmed": "Confirmed",
     "cancelled": "Cancelled",
-    "completed": "Completed"
+    "completed": "Completed",
+    "activeBookings": "Active",
+    "pastBookings": "Past",
+    "cancelledBookings": "Cancelled",
+    "confirmCancel": "Are you sure you want to cancel this booking? You will receive a refund.",
+    "bookingCancelled": "Booking cancelled successfully! Refund will be processed.",
+    "cancelFailed": "Failed to cancel booking. Please try again.",
+    "cancelling": "Cancelling"
   },
   "admin": {
     "title": "Admin Dashboard",
