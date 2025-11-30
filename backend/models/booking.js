@@ -1,4 +1,5 @@
 import pool from "../db/index.js";
+import * as stripeService from "../services/stripeService.js";
 
 // Get all bookings (with optional user_id filter for user-specific bookings)
 export async function getBookings(user_id = null) {
@@ -170,5 +171,228 @@ export async function cancelBooking(booking_id) {
 // Get user's bookings
 export async function getUserBookings(user_id) {
   return getBookings(user_id);
+}
+
+// ============================================
+// B3.0 - STRIPE PAYMENT INTEGRATION
+// ============================================
+
+/**
+ * Create a payment intent for a booking (Step 1 of Stripe flow)
+ * This doesn't create the booking yet - just initializes payment
+ */
+export async function createPaymentIntentForBooking({ 
+  showtime_id, 
+  customer_name, 
+  customer_email, 
+  customer_phone, 
+  number_of_seats, 
+  total_price 
+}) {
+  const client = await pool.connect();
+  
+  try {
+    await client.query('BEGIN');
+
+    // Check showtime exists and has enough seats
+    const { rows: showtimeRows } = await client.query(
+      'SELECT available_seats, price FROM showtimes WHERE showtime_id = $1 FOR UPDATE',
+      [showtime_id]
+    );
+
+    if (!showtimeRows[0]) {
+      throw new Error('Showtime not found');
+    }
+
+    if (showtimeRows[0].available_seats < number_of_seats) {
+      throw new Error('Not enough seats available');
+    }
+
+    // Verify the total price matches (prevent client-side tampering)
+    const expectedPrice = showtimeRows[0].price * number_of_seats;
+    if (Math.abs(total_price - expectedPrice) > 0.01) {
+      throw new Error(`Price mismatch. Expected ${expectedPrice}, got ${total_price}`);
+    }
+
+    // Temporarily reserve seats (will be finalized or released after payment)
+    // Note: In production, you'd want to implement a timeout to release these
+    await client.query(
+      'UPDATE showtimes SET available_seats = available_seats - $1 WHERE showtime_id = $2',
+      [number_of_seats, showtime_id]
+    );
+
+    await client.query('COMMIT');
+
+    // Create Stripe payment intent
+    const paymentIntent = await stripeService.createPaymentIntent({
+      amount: total_price,
+      customer_email,
+      customer_name,
+      metadata: {
+        showtime_id: showtime_id.toString(),
+        number_of_seats: number_of_seats.toString(),
+        customer_phone: customer_phone || ''
+      }
+    });
+
+    return {
+      ...paymentIntent,
+      showtime_id,
+      number_of_seats,
+      total_price,
+      // Note: Seats are temporarily reserved
+      seats_reserved: true
+    };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+/**
+ * Confirm booking after successful Stripe payment (Step 2 of Stripe flow)
+ * This creates the actual booking record after payment is verified
+ */
+export async function confirmBookingWithStripe({ 
+  payment_intent_id,
+  user_id,
+  showtime_id,
+  customer_name,
+  customer_email,
+  customer_phone,
+  number_of_seats,
+  total_price
+}) {
+  const client = await pool.connect();
+  
+  try {
+    await client.query('BEGIN');
+
+    // Verify payment with Stripe
+    const paymentStatus = await stripeService.confirmPayment(payment_intent_id);
+
+    if (paymentStatus.status !== 'succeeded') {
+      throw new Error(`Payment not successful. Status: ${paymentStatus.status}`);
+    }
+
+    // Create booking record
+    const sql = `
+      INSERT INTO bookings (user_id, showtime_id, customer_name, customer_email, customer_phone, 
+                           number_of_seats, total_price, status, payment_status, payment_method) 
+      VALUES ($1, $2, $3, $4, $5, $6, $7, 'confirmed', 'completed', 'stripe') 
+      RETURNING booking_id, user_id, showtime_id, customer_name, customer_email, customer_phone, 
+                number_of_seats, total_price, status, payment_status, payment_method, created_at
+    `;
+    const values = [
+      user_id || null, 
+      showtime_id, 
+      customer_name, 
+      customer_email, 
+      customer_phone || null, 
+      number_of_seats, 
+      total_price
+    ];
+    const { rows: bookingRows } = await client.query(sql, values);
+
+    // Create payment record with Stripe transaction ID
+    await client.query(
+      `INSERT INTO payments (booking_id, amount, payment_status, payment_method, transaction_id)
+       VALUES ($1, $2, 'completed', 'stripe', $3)`,
+      [bookingRows[0].booking_id, total_price, payment_intent_id]
+    );
+
+    // Seats were already reserved in createPaymentIntent, so no need to update again
+
+    await client.query('COMMIT');
+    
+    console.log(`✅ Booking confirmed with Stripe payment: ${bookingRows[0].booking_id}`);
+    
+    return bookingRows[0];
+  } catch (error) {
+    await client.query('ROLLBACK');
+    
+    // If booking creation fails after payment succeeded, we should handle this carefully
+    // In production, you'd want to log this and potentially refund
+    console.error('❌ Error confirming booking after payment:', error);
+    
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+/**
+ * Cancel booking and refund Stripe payment
+ * Enhanced version with Stripe refund support
+ */
+export async function cancelBookingWithStripe(booking_id) {
+  const client = await pool.connect();
+  
+  try {
+    await client.query('BEGIN');
+
+    // Get booking and payment details
+    const { rows: bookingRows } = await client.query(
+      `SELECT b.showtime_id, b.number_of_seats, b.status, b.payment_method,
+              p.transaction_id, p.payment_status
+       FROM bookings b
+       LEFT JOIN payments p ON b.booking_id = p.booking_id
+       WHERE b.booking_id = $1 FOR UPDATE`,
+      [booking_id]
+    );
+
+    if (!bookingRows[0]) {
+      throw new Error('Booking not found');
+    }
+
+    if (bookingRows[0].status === 'cancelled') {
+      throw new Error('Booking already cancelled');
+    }
+
+    const booking = bookingRows[0];
+
+    // If payment was made through Stripe, process refund
+    if (booking.payment_method === 'stripe' && booking.transaction_id) {
+      try {
+        await stripeService.refundPayment(booking.transaction_id);
+        console.log(`✅ Stripe refund processed for booking ${booking_id}`);
+      } catch (error) {
+        console.error(`❌ Stripe refund failed for booking ${booking_id}:`, error);
+        // Continue with cancellation even if refund fails (manual refund may be needed)
+      }
+    }
+
+    // Update booking status
+    const { rows: updatedBooking } = await client.query(
+      `UPDATE bookings 
+       SET status = 'cancelled', payment_status = 'refunded'
+       WHERE booking_id = $1 
+       RETURNING booking_id, user_id, showtime_id, customer_name, customer_email, customer_phone, 
+                 number_of_seats, total_price, status, payment_status, payment_method, created_at`,
+      [booking_id]
+    );
+
+    // Return seats to showtime
+    await client.query(
+      'UPDATE showtimes SET available_seats = available_seats + $1 WHERE showtime_id = $2',
+      [booking.number_of_seats, booking.showtime_id]
+    );
+
+    // Update payment status
+    await client.query(
+      `UPDATE payments SET payment_status = 'refunded' WHERE booking_id = $1`,
+      [booking_id]
+    );
+
+    await client.query('COMMIT');
+    return updatedBooking[0];
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
