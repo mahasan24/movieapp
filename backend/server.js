@@ -8,6 +8,7 @@ import auditoriumRoutes from "./routes/auditoriumRoutes.js";
 import showtimeRoutes from "./routes/showtimeRoutes.js";
 import bookingRoutes from "./routes/bookingRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
+import activityLogRoutes from "./routes/activityLogRoutes.js";
 import pool from "./db/index.js";
 
 dotenv.config();
@@ -24,6 +25,7 @@ app.use("/auditoriums", auditoriumRoutes);
 app.use("/showtimes", showtimeRoutes);
 app.use("/bookings", bookingRoutes);
 app.use("/admin", adminRoutes);
+app.use("/activity-logs", activityLogRoutes);
 
 const PORT = process.env.PORT || 4000;
 
@@ -32,7 +34,24 @@ async function start() {
     // DB connection test
     await pool.query('SELECT 1');
     app.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
+      console.log('=================================');
+      console.log('🎬 Movie Booking API Server');
+      console.log('=================================');
+      console.log(`🚀 Server running on port ${PORT}`);
+      console.log(`📍 URL: http://localhost:${PORT}`);
+      console.log('=================================');
+      console.log('✅ Week 3 - Teammate A Complete!');
+      console.log('=================================');
+      console.log('Available Routes:');
+      console.log('  - /movies');
+      console.log('  - /auth');
+      console.log('  - /theaters');
+      console.log('  - /auditoriums');
+      console.log('  - /showtimes');
+      console.log('  - /bookings');
+      console.log('  - /admin');
+      console.log('  - /activity-logs (NEW)');
+      console.log('=================================');
     });
   } catch (err) {
     console.error("Failed to start server", err);
@@ -41,4 +60,3 @@ async function start() {
 }
 
 start();
-

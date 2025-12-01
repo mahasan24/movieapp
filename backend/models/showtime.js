@@ -1,5 +1,66 @@
 import pool from "../db/index.js";
 
+// Get showtimes with optional filters
+export async function getShowtimes({ movie_id = null, theater_id = null, date = null, auditorium_id = null } = {}) {
+  let sql = `
+    SELECT 
+      s.showtime_id,
+      s.show_date,
+      s.show_time,
+      s.price,
+      s.available_seats,
+      m.id as movie_id,
+      m.title as movie_title,
+      m.poster_url,
+      m.duration,
+      m.rating,
+      a.auditorium_id,
+      a.name as auditorium_name,
+      a.seating_capacity,
+      t.theater_id,
+      t.name as theater_name,
+      t.city,
+      t.address
+    FROM showtimes s
+    INNER JOIN movies m ON s.movie_id = m.id
+    INNER JOIN auditoriums a ON s.auditorium_id = a.auditorium_id
+    INNER JOIN theaters t ON a.theater_id = t.theater_id
+    WHERE s.show_date >= CURRENT_DATE
+  `;
+  
+  const params = [];
+  let paramCount = 1;
+  
+  if (movie_id) {
+    sql += ` AND s.movie_id = $${paramCount}`;
+    params.push(movie_id);
+    paramCount++;
+  }
+  
+  if (theater_id) {
+    sql += ` AND t.theater_id = $${paramCount}`;
+    params.push(theater_id);
+    paramCount++;
+  }
+  
+  if (auditorium_id) {
+    sql += ` AND s.auditorium_id = $${paramCount}`;
+    params.push(auditorium_id);
+    paramCount++;
+  }
+  
+  if (date) {
+    sql += ` AND s.show_date = $${paramCount}`;
+    params.push(date);
+    paramCount++;
+  }
+  
+  sql += ` ORDER BY s.show_date, s.show_time`;
+  
+  const { rows } = await pool.query(sql, params);
+  return rows;
+}
+
 // Get all showtimes with movie and theater info
 export async function getAllShowtimes() {
   const sql = `
@@ -119,6 +180,70 @@ export async function createShowtime({ movie_id, auditorium_id, show_date, show_
     RETURNING *
   `;
   const { rows } = await pool.query(sql, [movie_id, auditorium_id, show_date, show_time, price, available_seats]);
+  return rows[0];
+}
+
+// Update showtime
+export async function updateShowtime(showtime_id, updates) {
+  const { movie_id, auditorium_id, show_date, show_time, price, available_seats } = updates;
+  
+  let sql = `UPDATE showtimes SET `;
+  const params = [];
+  const setClauses = [];
+  let paramCount = 1;
+  
+  if (movie_id !== undefined) {
+    setClauses.push(`movie_id = $${paramCount}`);
+    params.push(movie_id);
+    paramCount++;
+  }
+  
+  if (auditorium_id !== undefined) {
+    setClauses.push(`auditorium_id = $${paramCount}`);
+    params.push(auditorium_id);
+    paramCount++;
+  }
+  
+  if (show_date !== undefined) {
+    setClauses.push(`show_date = $${paramCount}`);
+    params.push(show_date);
+    paramCount++;
+  }
+  
+  if (show_time !== undefined) {
+    setClauses.push(`show_time = $${paramCount}`);
+    params.push(show_time);
+    paramCount++;
+  }
+  
+  if (price !== undefined) {
+    setClauses.push(`price = $${paramCount}`);
+    params.push(price);
+    paramCount++;
+  }
+  
+  if (available_seats !== undefined) {
+    setClauses.push(`available_seats = $${paramCount}`);
+    params.push(available_seats);
+    paramCount++;
+  }
+  
+  if (setClauses.length === 0) {
+    return null;
+  }
+  
+  sql += setClauses.join(', ');
+  sql += ` WHERE showtime_id = $${paramCount} RETURNING *`;
+  params.push(showtime_id);
+  
+  const { rows } = await pool.query(sql, params);
+  return rows[0];
+}
+
+// Delete showtime
+export async function deleteShowtime(showtime_id) {
+  const sql = `DELETE FROM showtimes WHERE showtime_id = $1 RETURNING *`;
+  const { rows } = await pool.query(sql, [showtime_id]);
   return rows[0];
 }
 
