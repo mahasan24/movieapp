@@ -1,0 +1,197 @@
+// A1.3 - TMDB Service Module
+// Handles all interactions with The Movie Database API
+
+import dotenv from 'dotenv';
+dotenv.config();
+
+const TMDB_API_KEY = process.env.TMDB_API_KEY;
+const TMDB_BASE_URL = process.env.TMDB_BASE_URL || 'https://api.themoviedb.org/3';
+const TMDB_IMAGE_BASE_URL = 'https://image.tmdb.org/t/p/w500';
+
+// Check if API key is configured
+if (!TMDB_API_KEY) {
+  console.warn('⚠️  TMDB_API_KEY not configured. TMDB integration will not work.');
+}
+
+/**
+ * Search movies on TMDB
+ * @param {string} query - Search query
+ * @param {string} language - Language code (en, fi, etc.)
+ * @returns {Promise<Array>} - Array of movie results
+ */
+export const searchMovies = async (query, language = 'en') => {
+  if (!TMDB_API_KEY) {
+    throw new Error('TMDB_API_KEY not configured');
+  }
+
+  const url = `${TMDB_BASE_URL}/search/movie?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(query)}&language=${language}`;
+  
+  try {
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      throw new Error(`TMDB API error: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    return data.results || [];
+  } catch (error) {
+    console.error('Error searching TMDB:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get detailed movie information from TMDB
+ * @param {number} tmdbId - TMDB movie ID
+ * @param {string} language - Language code
+ * @returns {Promise<Object>} - Detailed movie data
+ */
+export const getMovieDetails = async (tmdbId, language = 'en') => {
+  if (!TMDB_API_KEY) {
+    throw new Error('TMDB_API_KEY not configured');
+  }
+
+  const url = `${TMDB_BASE_URL}/movie/${tmdbId}?api_key=${TMDB_API_KEY}&language=${language}&append_to_response=credits`;
+  
+  try {
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw new Error('Movie not found on TMDB');
+      }
+      throw new Error(`TMDB API error: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error fetching TMDB movie details:', error);
+    throw error;
+  }
+};
+
+/**
+ * Map TMDB movie data to our database schema
+ * @param {Object} tmdbMovie - TMDB movie object
+ * @param {string} importLanguage - The language used when importing (for description/title)
+ * @returns {Object} - Movie data in our schema format
+ */
+export const mapTmdbToSchema = (tmdbMovie, importLanguage = 'en') => {
+  // Extract director from crew
+  const director = tmdbMovie.credits?.crew?.find(
+    person => person.job === 'Director'
+  )?.name || null;
+  
+  // Extract top cast (first 10 for better coverage)
+  const cast = tmdbMovie.credits?.cast
+    ?.slice(0, 10)
+    .map(actor => actor.name)
+    .join(', ') || null;
+  
+  // Extract genres
+  const genre = tmdbMovie.genres
+    ?.map(g => g.name)
+    .join(', ') || null;
+  
+  // Build poster URL
+  const poster_url = tmdbMovie.poster_path 
+    ? `${TMDB_IMAGE_BASE_URL}${tmdbMovie.poster_path}`
+    : null;
+
+  // Get spoken languages (for movies with multiple languages)
+  const spokenLanguages = tmdbMovie.spoken_languages
+    ?.map(lang => lang.english_name || lang.name)
+    .join(', ') || null;
+  
+  // Map to our schema
+  return {
+    title: tmdbMovie.title || tmdbMovie.original_title,
+    original_title: tmdbMovie.original_title || tmdbMovie.title,
+    description: tmdbMovie.overview || null,
+    genre: genre,
+    year: tmdbMovie.release_date ? new Date(tmdbMovie.release_date).getFullYear() : null,
+    rating: tmdbMovie.vote_average ? parseFloat(tmdbMovie.vote_average.toFixed(1)) : null,
+    poster_url: poster_url,
+    duration: tmdbMovie.runtime || null,
+    director: director,
+    cast: cast,
+    // language = the language version imported (title/description language)
+    language: importLanguage,
+    // original_language = the language the movie was made in
+    original_language: tmdbMovie.original_language || 'en',
+    spoken_languages: spokenLanguages,
+    tmdb_id: tmdbMovie.id,
+    popularity: tmdbMovie.popularity ? parseFloat(tmdbMovie.popularity.toFixed(2)) : 0,
+    release_date: tmdbMovie.release_date || null,
+    tagline: tmdbMovie.tagline || null,
+    budget: tmdbMovie.budget || null,
+    revenue: tmdbMovie.revenue || null,
+    is_featured: false,
+    is_trending_managed: false
+  };
+};
+
+/**
+ * Get popular movies from TMDB (for discovery)
+ * @param {number} page - Page number
+ * @param {string} language - Language code
+ * @returns {Promise<Array>} - Array of popular movies
+ */
+export const getPopularMovies = async (page = 1, language = 'en') => {
+  if (!TMDB_API_KEY) {
+    throw new Error('TMDB_API_KEY not configured');
+  }
+
+  const url = `${TMDB_BASE_URL}/movie/popular?api_key=${TMDB_API_KEY}&page=${page}&language=${language}`;
+  
+  try {
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      throw new Error(`TMDB API error: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    return data.results || [];
+  } catch (error) {
+    console.error('Error fetching popular movies:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get now playing movies from TMDB
+ * @param {string} language - Language code
+ * @returns {Promise<Array>} - Array of now playing movies
+ */
+export const getNowPlayingMovies = async (language = 'en') => {
+  if (!TMDB_API_KEY) {
+    throw new Error('TMDB_API_KEY not configured');
+  }
+
+  const url = `${TMDB_BASE_URL}/movie/now_playing?api_key=${TMDB_API_KEY}&language=${language}`;
+  
+  try {
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      throw new Error(`TMDB API error: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    return data.results || [];
+  } catch (error) {
+    console.error('Error fetching now playing movies:', error);
+    throw error;
+  }
+};
+
+export default {
+  searchMovies,
+  getMovieDetails,
+  mapTmdbToSchema,
+  getPopularMovies,
+  getNowPlayingMovies
+};

@@ -68,8 +68,8 @@ const Home = () => {
           <h1 className="hero-title">{t('landing.heroTitle')}</h1>
           <p className="hero-subtitle">{t('landing.heroSubtitle')}</p>
           <div className="hero-buttons">
-            <Link to="/browse" className="hero-btn btn-primary">
-              {t('landing.exploreButton')}
+            <Link to="/now-showing" className="hero-btn btn-primary">
+              🎬 {t('landing.nowShowingButton')}
             </Link>
             <Link to="/browse" className="hero-btn btn-secondary">
               {t('landing.browseButton')}

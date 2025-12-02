@@ -24,9 +24,7 @@ const MovieDetail = () => {
       try {
         const res = await fetch(`${API_BASE}/movies/${id}`);
         if (!res.ok) {
-          if (res.status === 404) {
-            throw new Error('Movie not found');
-          }
+          if (res.status === 404) throw new Error('Movie not found');
           throw new Error(`Server responded ${res.status}`);
         }
         const data = await res.json();
@@ -39,14 +37,10 @@ const MovieDetail = () => {
       }
     };
 
-    if (id) {
-      fetchMovieDetail();
-    }
+    if (id) fetchMovieDetail();
   }, [id]);
 
-  const handleBackClick = () => {
-    navigate('/browse');
-  };
+  const handleBackClick = () => navigate('/browse');
 
   const handleBookTickets = () => {
     if (!user) {
@@ -67,6 +61,7 @@ const MovieDetail = () => {
     );
   }
 
+  // Error state
   if (error) {
     return (
       <div className="movie-detail-container">
@@ -82,13 +77,13 @@ const MovieDetail = () => {
     );
   }
 
+  // Not found
   if (!movie) {
     return (
       <div className="movie-detail-container">
         <div className="error-state">
           <span className="error-icon">🎬</span>
           <h2>{t('movieDetail.notFound')}</h2>
-          <p className="error-message">{t('movieDetail.notFound')}</p>
           <button className="back-btn" onClick={handleBackClick}>
             {t('movieDetail.backButton')}
           </button>
@@ -104,13 +99,11 @@ const MovieDetail = () => {
       </button>
 
       <div className="movie-detail-content">
+
+        {/* Poster */}
         <div className="movie-poster-section">
           {movie.poster_url ? (
-            <img 
-              src={movie.poster_url} 
-              alt={movie.title} 
-              className="detail-poster"
-            />
+            <img src={movie.poster_url} alt={movie.title} className="detail-poster" />
           ) : (
             <div className="detail-poster placeholder">
               <span className="placeholder-icon">🎬</span>
@@ -119,10 +112,13 @@ const MovieDetail = () => {
           )}
         </div>
 
+        {/* Info Section */}
         <div className="movie-info-section">
           <h1 className="detail-title">{movie.title}</h1>
 
           <div className="detail-meta">
+
+            {/* Year */}
             {movie.year && (
               <span className="meta-item">
                 <span className="meta-icon">📅</span>
@@ -130,13 +126,22 @@ const MovieDetail = () => {
                 <span className="meta-value">{movie.year}</span>
               </span>
             )}
-            {movie.duration && (
-              <span className="meta-item">
-                <span className="meta-icon">⏱️</span>
-                <span className="meta-label">{t('movieDetail.duration')}:</span>
-                <span className="meta-value">{movie.duration} {t('movieDetail.minutes')}</span>
+
+            {/* Duration - handles both object and number formats */}
+            <span className="meta-item">
+              <span className="meta-icon">⏱️</span>
+              <span className="meta-label">{t('movieDetail.duration')}:</span>
+              <span className="meta-value">
+                {movie.duration 
+                  ? (typeof movie.duration === 'object' 
+                      ? `${movie.duration.hours}h ${movie.duration.minutes}m`
+                      : `${Math.floor(movie.duration / 60)}h ${movie.duration % 60}m`)
+                  : t('common.notAvailable')
+                }
               </span>
-            )}
+            </span>
+
+            {/* Rating FIXED */}
             {movie.rating !== null && movie.rating !== undefined && (
               <span className="meta-item rating">
                 <span className="meta-icon">⭐</span>
@@ -144,8 +149,10 @@ const MovieDetail = () => {
                 <span className="meta-value highlight">{movie.rating}/10</span>
               </span>
             )}
+
           </div>
 
+          {/* Genre */}
           {movie.genre && (
             <div className="detail-section">
               <h3 className="section-title">{t('movieDetail.genre')}</h3>
@@ -157,6 +164,7 @@ const MovieDetail = () => {
             </div>
           )}
 
+          {/* Overview */}
           {movie.description && (
             <div className="detail-section">
               <h3 className="section-title">Overview</h3>
@@ -164,20 +172,19 @@ const MovieDetail = () => {
             </div>
           )}
 
-          {movie.director && (
-            <div className="detail-section">
-              <h3 className="section-title">{t('movieDetail.director')}</h3>
-              <p className="info-text">{movie.director}</p>
-            </div>
-          )}
+          {/* Director */}
+          <div className="detail-section">
+            <h3 className="section-title">{t('movieDetail.director')}</h3>
+            <p className="info-text">{movie.director || t('common.notAvailable')}</p>
+          </div>
 
-          {movie.cast && (
-            <div className="detail-section">
-              <h3 className="section-title">{t('movieDetail.cast')}</h3>
-              <p className="info-text">{movie.cast}</p>
-            </div>
-          )}
+          {/* Cast */}
+          <div className="detail-section">
+            <h3 className="section-title">{t('movieDetail.cast')}</h3>
+            <p className="info-text">{movie.cast || t('common.notAvailable')}</p>
+          </div>
 
+          {/* Buttons */}
           <div className="action-buttons">
             <button className="action-btn primary" onClick={handleBookTickets}>
               🎟️ {t('movieDetail.bookTickets')}
@@ -200,4 +207,3 @@ const MovieDetail = () => {
 };
 
 export default MovieDetail;
-

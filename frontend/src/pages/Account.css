@@ -281,7 +281,7 @@
   color: rgba(255, 255, 255, 0.5);
 }
 
-.status-badge {
+.booking-card .status-badge {
   position: absolute;
   top: 10px;
   right: 10px;
@@ -293,17 +293,17 @@
   backdrop-filter: blur(10px);
 }
 
-.status-badge.status-confirmed {
+.booking-card .status-badge.status-confirmed {
   background: rgba(40, 167, 69, 0.9);
   color: white;
 }
 
-.status-badge.status-cancelled {
+.booking-card .status-badge.status-cancelled {
   background: rgba(220, 53, 69, 0.9);
   color: white;
 }
 
-.status-badge.status-completed {
+.booking-card .status-badge.status-completed {
   background: rgba(108, 117, 125, 0.9);
   color: white;
 }
