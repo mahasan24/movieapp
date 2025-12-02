@@ -9,15 +9,35 @@ const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:4000';
 const Browse = () => {
   const { t } = useTranslation();
   const [movies, setMovies] = useState([]);
+  const [cityMovies, setCityMovies] = useState([]);
+  const [cities, setCities] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const searchQuery = searchParams.get('search') || '';
+  const cityParam = searchParams.get('city') || '';
   const [localSearch, setLocalSearch] = useState(searchQuery);
   const [selectedGenre, setSelectedGenre] = useState('');
   const [selectedLanguage, setSelectedLanguage] = useState('');
+  const [selectedCity, setSelectedCity] = useState(cityParam);
 
-  // Fetch movies on mount
+  // Fetch available cities on mount
+  useEffect(() => {
+    const fetchCities = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/movies/cities`);
+        if (res.ok) {
+          const data = await res.json();
+          setCities(data || []);
+        }
+      } catch (err) {
+        console.error('Failed to fetch cities', err);
+      }
+    };
+    fetchCities();
+  }, []);
+
+  // Fetch all movies on mount
   useEffect(() => {
     const fetchMovies = async () => {
       setLoading(true);
@@ -33,40 +53,115 @@ const Browse = () => {
       } finally {
         setLoading(false);
       }
-    }
+    };
     fetchMovies();
   }, [t]);
+
+  // Fetch movies by city when city is selected
+  useEffect(() => {
+    const fetchCityMovies = async () => {
+      if (!selectedCity) {
+        setCityMovies([]);
+        return;
+      }
+      
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await fetch(`${API_BASE}/movies/by-city/${encodeURIComponent(selectedCity)}`);
+        if (!res.ok) throw new Error(`Server responded ${res.status}`);
+        const data = await res.json();
+        setCityMovies(data || []);
+      } catch (err) {
+        console.error('Failed to fetch movies for city', err);
+        setError(t('browse.errorLoading'));
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchCityMovies();
+  }, [selectedCity, t]);
 
   // Debounced search effect
   useEffect(() => {
     const timer = setTimeout(() => {
       if (localSearch !== searchQuery) {
-        if (localSearch.trim()) {
-          setSearchParams({ search: localSearch.trim() });
-        } else {
-          setSearchParams({});
-        }
+        const params = {};
+        if (localSearch.trim()) params.search = localSearch.trim();
+        if (selectedCity) params.city = selectedCity;
+        setSearchParams(params);
       }
-    }, 500); // 500ms debounce
+    }, 500);
 
     return () => clearTimeout(timer);
-  }, [localSearch, searchQuery, setSearchParams]);
+  }, [localSearch, searchQuery, selectedCity, setSearchParams]);
+
+  // Update URL when city changes
+  useEffect(() => {
+    const params = {};
+    if (searchQuery) params.search = searchQuery;
+    if (selectedCity) params.city = selectedCity;
+    if (Object.keys(params).length > 0 || cityParam !== selectedCity) {
+      setSearchParams(params);
+    }
+  }, [selectedCity]);
 
   // Get unique genres from movies
   const availableGenres = useMemo(() => {
     const genres = new Set();
-    movies.forEach(movie => {
+    const sourceMovies = selectedCity ? cityMovies : movies;
+    sourceMovies.forEach(movie => {
       if (movie.genre) {
-        // Split by comma in case there are multiple genres
         movie.genre.split(',').forEach(g => genres.add(g.trim()));
       }
     });
     return Array.from(genres).sort();
-  }, [movies]);
+  }, [movies, cityMovies, selectedCity]);
+
+  // Get unique languages from movies
+  const availableLanguages = useMemo(() => {
+    const languages = new Set();
+    const sourceMovies = selectedCity ? cityMovies : movies;
+    sourceMovies.forEach(movie => {
+      if (movie.original_language) {
+        languages.add(movie.original_language);
+      }
+      if (movie.language) {
+        languages.add(movie.language);
+      }
+    });
+    return Array.from(languages).sort();
+  }, [movies, cityMovies, selectedCity]);
+
+  // Language code to name mapping
+  const languageNames = {
+    'en': 'English',
+    'fi': 'Finnish (Suomi)',
+    'sv': 'Swedish (Svenska)',
+    'de': 'German (Deutsch)',
+    'fr': 'French (Français)',
+    'es': 'Spanish (Español)',
+    'ja': 'Japanese (日本語)',
+    'ko': 'Korean (한국어)',
+    'hi': 'Hindi (हिन्दी)',
+    'zh': 'Chinese (中文)',
+    'it': 'Italian (Italiano)',
+    'pt': 'Portuguese (Português)',
+    'ru': 'Russian (Русский)',
+    'ar': 'Arabic (العربية)',
+    'nl': 'Dutch (Nederlands)',
+    'pl': 'Polish (Polski)',
+    'tr': 'Turkish (Türkçe)',
+    'th': 'Thai (ไทย)',
+    'da': 'Danish (Dansk)',
+    'no': 'Norwegian (Norsk)'
+  };
 
   // Filter movies based on search query, genre, and language
   const filteredMovies = useMemo(() => {
-    return movies.filter(movie => {
+    const sourceMovies = selectedCity ? cityMovies : movies;
+    
+    return sourceMovies.filter(movie => {
       // Search filter
       const matchesSearch = !searchQuery || 
         movie.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -77,12 +172,14 @@ const Browse = () => {
       const matchesGenre = !selectedGenre || 
         movie.genre?.toLowerCase().includes(selectedGenre.toLowerCase());
 
-      // Language filter (placeholder - can be connected to backend later)
-      const matchesLanguage = !selectedLanguage; // Always true for now
+      // Language filter
+      const matchesLanguage = !selectedLanguage || 
+        movie.original_language === selectedLanguage ||
+        movie.language === selectedLanguage;
 
       return matchesSearch && matchesGenre && matchesLanguage;
     });
-  }, [movies, searchQuery, selectedGenre, selectedLanguage]);
+  }, [movies, cityMovies, searchQuery, selectedGenre, selectedLanguage, selectedCity]);
 
   const handleSearchChange = (e) => {
     setLocalSearch(e.target.value);
@@ -96,22 +193,58 @@ const Browse = () => {
     setSelectedLanguage(e.target.value);
   };
 
-  const clearFilters = () => {
+  const handleCityChange = (e) => {
+    setSelectedCity(e.target.value);
+    // Reset other filters when changing city
     setSelectedGenre('');
     setSelectedLanguage('');
   };
 
-  const hasActiveFilters = selectedGenre || selectedLanguage;
+  const clearFilters = () => {
+    setSelectedGenre('');
+    setSelectedLanguage('');
+    setSelectedCity('');
+    setLocalSearch('');
+    setSearchParams({});
+  };
+
+  const hasActiveFilters = selectedGenre || selectedLanguage || selectedCity;
 
   return (
     <div className="browse-root">
       <div className="browse-header">
         <h1>{t('browse.title')}</h1>
+        {selectedCity && (
+          <p className="browse-subtitle">
+            📍 {t('browse.showingIn')} <strong>{selectedCity}</strong>
+          </p>
+        )}
       </div>
 
       {/* Filters Section */}
       <div className="filters-section">
         <div className="filters-container">
+          {/* Location Filter - Primary */}
+          <div className="filter-group location-filter-group">
+            <label htmlFor="city-filter" className="filter-label">
+              <span className="filter-icon">📍</span>
+              <span>{t('browse.filterByLocation')}</span>
+            </label>
+            <select
+              id="city-filter"
+              className="filter-select location-select"
+              value={selectedCity}
+              onChange={handleCityChange}
+            >
+              <option value="">{t('browse.allLocations')}</option>
+              {cities.map(city => (
+                <option key={city.city} value={city.city}>
+                  {city.city} ({city.theater_count} {city.theater_count === 1 ? 'theater' : 'theaters'})
+                </option>
+              ))}
+            </select>
+          </div>
+
           <div className="filter-group">
             <label htmlFor="genre-filter" className="filter-label">
               <span className="filter-icon">🎭</span>
@@ -137,35 +270,49 @@ const Browse = () => {
             </label>
             <select
               id="language-filter"
-              className="filter-select disabled"
+              className="filter-select"
               value={selectedLanguage}
               onChange={handleLanguageChange}
-              disabled
-              title="Language filter coming soon"
             >
               <option value="">{t('browse.allLanguages')}</option>
-              <option value="en">English</option>
-              <option value="es">Spanish</option>
-              <option value="fr">French</option>
+              {availableLanguages.map(lang => (
+                <option key={lang} value={lang}>
+                  {languageNames[lang] || lang.toUpperCase()}
+                </option>
+              ))}
             </select>
           </div>
 
           {hasActiveFilters && (
             <button className="clear-filters-btn" onClick={clearFilters}>
-              <span>✕</span> Clear Filters
+              <span>✕</span> {t('browse.clearFilters')}
             </button>
           )}
         </div>
       </div>
 
       {/* Results Summary */}
-      {hasActiveFilters && (
+      {(hasActiveFilters || searchQuery) && (
         <div className="results-summary">
           <p>
-            Showing <strong>{filteredMovies.length}</strong> {filteredMovies.length === 1 ? 'movie' : 'movies'}
-            {searchQuery && ` for "${searchQuery}"`}
-            {selectedGenre && ` in ${selectedGenre}`}
+            {t('browse.showing')} <strong>{filteredMovies.length}</strong> {filteredMovies.length === 1 ? t('browse.movie') : t('browse.movies')}
+            {selectedCity && ` ${t('browse.in')} ${selectedCity}`}
+            {searchQuery && ` ${t('browse.for')} "${searchQuery}"`}
+            {selectedGenre && ` • ${selectedGenre}`}
+            {selectedLanguage && ` • ${languageNames[selectedLanguage] || selectedLanguage.toUpperCase()}`}
           </p>
+        </div>
+      )}
+
+      {/* City Info Banner */}
+      {selectedCity && cityMovies.length > 0 && (
+        <div className="city-info-banner">
+          <div className="city-info-content">
+            <span className="city-icon">🎬</span>
+            <span>
+              {cityMovies.length} {cityMovies.length === 1 ? t('browse.movieShowing') : t('browse.moviesShowing')} {t('browse.in')} {selectedCity}
+            </span>
+          </div>
         </div>
       )}
 
@@ -183,7 +330,7 @@ const Browse = () => {
           <span className="error-icon">⚠️</span>
           <p className="error-message">{error}</p>
           <button className="retry-btn" onClick={() => window.location.reload()}>
-            Try Again
+            {t('browse.tryAgain')}
           </button>
         </div>
       )}
@@ -195,22 +342,30 @@ const Browse = () => {
             <div className="empty-state">
               <span className="empty-icon">🎬</span>
               <h2 className="empty-title">
-                {searchQuery || selectedGenre ? t('browse.noResults') : t('browse.noResults')}
+                {selectedCity 
+                  ? t('browse.noMoviesInCity')
+                  : t('browse.noResults')
+                }
               </h2>
               <p className="empty-description">
-                {searchQuery || selectedGenre
-                  ? t('browse.tryDifferent')
-                  : t('browse.tryDifferent')}
+                {selectedCity 
+                  ? t('browse.tryDifferentCity')
+                  : t('browse.tryDifferent')
+                }
               </p>
               {hasActiveFilters && (
                 <button className="empty-action-btn" onClick={clearFilters}>
-                  Clear Filters
+                  {t('browse.clearFilters')}
                 </button>
               )}
             </div>
           ) : (
             filteredMovies.map(movie => (
-              <MovieCard key={movie.id} movie={movie} />
+              <MovieCard 
+                key={movie.id} 
+                movie={movie} 
+                showCityInfo={selectedCity && movie.showtime_count}
+              />
             ))
           )}
         </div>

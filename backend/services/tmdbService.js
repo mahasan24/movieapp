@@ -75,17 +75,18 @@ export const getMovieDetails = async (tmdbId, language = 'en') => {
 /**
  * Map TMDB movie data to our database schema
  * @param {Object} tmdbMovie - TMDB movie object
+ * @param {string} importLanguage - The language used when importing (for description/title)
  * @returns {Object} - Movie data in our schema format
  */
-export const mapTmdbToSchema = (tmdbMovie) => {
+export const mapTmdbToSchema = (tmdbMovie, importLanguage = 'en') => {
   // Extract director from crew
   const director = tmdbMovie.credits?.crew?.find(
     person => person.job === 'Director'
   )?.name || null;
   
-  // Extract top cast (first 5)
+  // Extract top cast (first 10 for better coverage)
   const cast = tmdbMovie.credits?.cast
-    ?.slice(0, 5)
+    ?.slice(0, 10)
     .map(actor => actor.name)
     .join(', ') || null;
   
@@ -98,10 +99,16 @@ export const mapTmdbToSchema = (tmdbMovie) => {
   const poster_url = tmdbMovie.poster_path 
     ? `${TMDB_IMAGE_BASE_URL}${tmdbMovie.poster_path}`
     : null;
+
+  // Get spoken languages (for movies with multiple languages)
+  const spokenLanguages = tmdbMovie.spoken_languages
+    ?.map(lang => lang.english_name || lang.name)
+    .join(', ') || null;
   
   // Map to our schema
   return {
     title: tmdbMovie.title || tmdbMovie.original_title,
+    original_title: tmdbMovie.original_title || tmdbMovie.title,
     description: tmdbMovie.overview || null,
     genre: genre,
     year: tmdbMovie.release_date ? new Date(tmdbMovie.release_date).getFullYear() : null,
@@ -110,11 +117,17 @@ export const mapTmdbToSchema = (tmdbMovie) => {
     duration: tmdbMovie.runtime || null,
     director: director,
     cast: cast,
-    language: tmdbMovie.original_language || 'en',
+    // language = the language version imported (title/description language)
+    language: importLanguage,
+    // original_language = the language the movie was made in
     original_language: tmdbMovie.original_language || 'en',
+    spoken_languages: spokenLanguages,
     tmdb_id: tmdbMovie.id,
     popularity: tmdbMovie.popularity ? parseFloat(tmdbMovie.popularity.toFixed(2)) : 0,
     release_date: tmdbMovie.release_date || null,
+    tagline: tmdbMovie.tagline || null,
+    budget: tmdbMovie.budget || null,
+    revenue: tmdbMovie.revenue || null,
     is_featured: false,
     is_trending_managed: false
   };

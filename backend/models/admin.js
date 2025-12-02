@@ -20,12 +20,12 @@ export async function getAdminSummary() {
         (SELECT COUNT(*) FROM bookings WHERE status = 'cancelled') as cancelled_bookings
     `);
     
-    // Get revenue statistics
+    // Get revenue statistics (only from confirmed bookings with completed payment)
     const { rows: revenue } = await client.query(`
       SELECT 
-        COALESCE(SUM(total_price), 0) as total_revenue,
-        COALESCE(SUM(CASE WHEN payment_status = 'completed' THEN total_price ELSE 0 END), 0) as completed_revenue,
-        COALESCE(SUM(CASE WHEN created_at >= CURRENT_DATE - INTERVAL '30 days' THEN total_price ELSE 0 END), 0) as revenue_last_30_days
+        COALESCE(SUM(CASE WHEN status = 'confirmed' AND payment_status = 'completed' THEN total_price ELSE 0 END), 0) as total_revenue,
+        COALESCE(SUM(CASE WHEN status = 'confirmed' AND payment_status = 'completed' THEN total_price ELSE 0 END), 0) as completed_revenue,
+        COALESCE(SUM(CASE WHEN status = 'confirmed' AND payment_status = 'completed' AND created_at >= CURRENT_DATE - INTERVAL '30 days' THEN total_price ELSE 0 END), 0) as revenue_last_30_days
       FROM bookings
     `);
     
