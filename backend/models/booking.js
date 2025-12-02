@@ -378,7 +378,7 @@ export async function cancelBookingWithStripe(booking_id) {
     // Update booking status
     const { rows: updatedBooking } = await client.query(
       `UPDATE bookings 
-       SET status = 'cancelled', payment_status = 'failed'
+       SET status = 'cancelled', payment_status = 'refunded'
        WHERE booking_id = $1 
        RETURNING booking_id, user_id, showtime_id, customer_name, customer_email, customer_phone, 
                  number_of_seats, total_price, status, payment_status, payment_method, created_at`,
