@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { useAuth } from '../context/AuthContext'
+import BookingModal from '../components/BookingModal'
 import './MovieDetail.css'
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:4000';
@@ -9,9 +11,11 @@ const MovieDetail = () => {
   const { t } = useTranslation();
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [movie, setMovie] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
 
   useEffect(() => {
     const fetchMovieDetail = async () => {
@@ -38,7 +42,14 @@ const MovieDetail = () => {
 
   const handleBackClick = () => navigate('/browse');
 
-  // Loading state
+  const handleBookTickets = () => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+    setIsBookingModalOpen(true);
+  };
+
   if (loading) {
     return (
       <div className="movie-detail-container">
@@ -176,7 +187,7 @@ const MovieDetail = () => {
 
           {/* Buttons */}
           <div className="action-buttons">
-            <button className="action-btn primary">
+            <button className="action-btn primary" onClick={handleBookTickets}>
               🎟️ {t('movieDetail.bookTickets')}
             </button>
             <button className="action-btn secondary">
@@ -185,6 +196,13 @@ const MovieDetail = () => {
           </div>
         </div>
       </div>
+
+      {/* C3.1 - Booking Modal with Stripe Payment */}
+      <BookingModal
+        movie={movie}
+        isOpen={isBookingModalOpen}
+        onClose={() => setIsBookingModalOpen(false)}
+      />
     </div>
   );
 };

@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+// C3.2 - Enhanced User Dashboard
+import React, { useEffect, useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import './Account.css';
@@ -11,6 +12,7 @@ const Account = () => {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [activeTab, setActiveTab] = useState('active'); // active, past, cancelled
 
   useEffect(() => {
     const fetchBookings = async () => {
@@ -44,7 +46,13 @@ const Account = () => {
   }, [user, t]);
 
   const handleCancelBooking = async (bookingId) => {
-    if (!window.confirm(t('common.confirm'))) return;
+    if (!window.confirm(t('account.confirmCancel'))) return;
+
+    // Optimistic UI update
+    const bookingToCancel = bookings.find(b => b.booking_id === bookingId);
+    setBookings(bookings.map(b => 
+      b.booking_id === bookingId ? { ...b, status: 'cancelled', cancelling: true } : b
+    ));
 
     try {
       const token = localStorage.getItem('token');
@@ -56,14 +64,46 @@ const Account = () => {
       });
 
       if (res.ok) {
+        // Update confirmed
         setBookings(bookings.map(b => 
-          b.booking_id === bookingId ? { ...b, status: 'cancelled' } : b
+          b.booking_id === bookingId ? { ...b, status: 'cancelled', cancelling: false } : b
         ));
+        alert(t('account.bookingCancelled'));
+      } else {
+        // Revert on failure
+        setBookings(bookings.map(b => 
+          b.booking_id === bookingId ? bookingToCancel : b
+        ));
+        alert(t('account.cancelFailed'));
       }
     } catch (err) {
       console.error('Error cancelling booking:', err);
+      // Revert on error
+      setBookings(bookings.map(b => 
+        b.booking_id === bookingId ? bookingToCancel : b
+      ));
+      alert(t('account.cancelFailed'));
     }
   };
+
+  // Filter bookings by tab
+  const filteredBookings = useMemo(() => {
+    const now = new Date();
+    return bookings.filter(booking => {
+      const showDateTime = new Date(`${booking.show_date} ${booking.show_time}`);
+      
+      switch (activeTab) {
+        case 'active':
+          return booking.status === 'confirmed' && showDateTime >= now;
+        case 'past':
+          return booking.status === 'confirmed' && showDateTime < now;
+        case 'cancelled':
+          return booking.status === 'cancelled';
+        default:
+          return true;
+      }
+    });
+  }, [bookings, activeTab]);
 
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString();
@@ -108,9 +148,31 @@ const Account = () => {
           </div>
         </section>
 
-        {/* Bookings Section */}
+        {/* Bookings Section with Tabs */}
         <section className="bookings-section">
           <h2>{t('account.myBookings')}</h2>
+
+          {/* Booking Tabs */}
+          <div className="booking-tabs">
+            <button
+              className={`tab-btn ${activeTab === 'active' ? 'active' : ''}`}
+              onClick={() => setActiveTab('active')}
+            >
+              🎟️ {t('account.activeBookings')}
+            </button>
+            <button
+              className={`tab-btn ${activeTab === 'past' ? 'active' : ''}`}
+              onClick={() => setActiveTab('past')}
+            >
+              ✅ {t('account.pastBookings')}
+            </button>
+            <button
+              className={`tab-btn ${activeTab === 'cancelled' ? 'active' : ''}`}
+              onClick={() => setActiveTab('cancelled')}
+            >
+              ❌ {t('account.cancelledBookings')}
+            </button>
+          </div>
 
           {loading && (
             <div className="loading-state">
@@ -125,60 +187,82 @@ const Account = () => {
             </div>
           )}
 
-          {!loading && !error && bookings.length === 0 && (
+          {!loading && !error && filteredBookings.length === 0 && (
             <div className="empty-state">
-              <p>{t('account.noBookings')}</p>
+              <p>{t('account.noBookingsInCategory')}</p>
             </div>
           )}
 
-          {!loading && !error && bookings.length > 0 && (
-            <div className="bookings-list">
-              {bookings.map(booking => (
-                <div key={booking.booking_id} className="booking-card">
-                  <div className="booking-header">
-                    <span className="booking-id">
-                      {t('account.bookingId')}: #{booking.booking_id}
-                    </span>
-                    <span className={`booking-status ${getStatusBadgeClass(booking.status)}`}>
+          {!loading && !error && filteredBookings.length > 0 && (
+            <div className="bookings-grid">
+              {filteredBookings.map(booking => (
+                <div key={booking.booking_id} className="rich-booking-card">
+                  {/* Movie Poster */}
+                  <div className="booking-poster">
+                    {booking.poster_url ? (
+                      <img src={booking.poster_url} alt={booking.movie_title} />
+                    ) : (
+                      <div className="poster-placeholder">🎬</div>
+                    )}
+                    <span className={`status-badge ${getStatusBadgeClass(booking.status)}`}>
                       {t(`account.${booking.status}`)}
                     </span>
                   </div>
 
-                  <div className="booking-details">
-                    <div className="detail-row">
-                      <span className="detail-label">{t('account.movie')}:</span>
-                      <span className="detail-value">{booking.movie_title}</span>
+                  {/* Booking Info */}
+                  <div className="booking-content">
+                    <h3 className="movie-title">{booking.movie_title}</h3>
+                    
+                    <div className="booking-meta">
+                      <div className="meta-item">
+                        <span className="meta-icon">🏛️</span>
+                        <span className="meta-text">{booking.theater_name}</span>
+                      </div>
+                      <div className="meta-item">
+                        <span className="meta-icon">📍</span>
+                        <span className="meta-text">{booking.city}</span>
+                      </div>
+                      <div className="meta-item">
+                        <span className="meta-icon">🎭</span>
+                        <span className="meta-text">{booking.auditorium_name}</span>
+                      </div>
+                      <div className="meta-item">
+                        <span className="meta-icon">📅</span>
+                        <span className="meta-text">{formatDate(booking.show_date)}</span>
+                      </div>
+                      <div className="meta-item">
+                        <span className="meta-icon">🕐</span>
+                        <span className="meta-text">{booking.show_time}</span>
+                      </div>
+                      <div className="meta-item">
+                        <span className="meta-icon">🪑</span>
+                        <span className="meta-text">{booking.number_of_seats} {t('account.seats')}</span>
+                      </div>
                     </div>
-                    <div className="detail-row">
-                      <span className="detail-label">{t('account.theater')}:</span>
-                      <span className="detail-value">
-                        {booking.theater_name} - {booking.auditorium_name}
-                      </span>
-                    </div>
-                    <div className="detail-row">
-                      <span className="detail-label">{t('account.showtime')}:</span>
-                      <span className="detail-value">
-                        {formatDate(booking.show_date)} at {booking.show_time}
-                      </span>
-                    </div>
-                    <div className="detail-row">
-                      <span className="detail-label">{t('account.seats')}:</span>
-                      <span className="detail-value">{booking.number_of_seats}</span>
-                    </div>
-                    <div className="detail-row">
-                      <span className="detail-label">{t('account.totalPrice')}:</span>
-                      <span className="detail-value price">${booking.total_price}</span>
-                    </div>
-                  </div>
 
-                  {booking.status === 'confirmed' && (
-                    <button 
-                      className="cancel-btn"
-                      onClick={() => handleCancelBooking(booking.booking_id)}
-                    >
-                      {t('account.cancelBooking')}
-                    </button>
-                  )}
+                    <div className="booking-footer">
+                      <div className="booking-price">
+                        <span className="price-label">{t('account.totalPrice')}:</span>
+                        <span className="price-value">€{booking.total_price}</span>
+                      </div>
+                      <div className="booking-id-small">#{booking.booking_id}</div>
+                    </div>
+
+                    {booking.status === 'confirmed' && !booking.cancelling && (
+                      <button 
+                        className="cancel-booking-btn"
+                        onClick={() => handleCancelBooking(booking.booking_id)}
+                      >
+                        🗑️ {t('account.cancelBooking')}
+                      </button>
+                    )}
+
+                    {booking.cancelling && (
+                      <button className="cancel-booking-btn" disabled>
+                        {t('account.cancelling')}...
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
