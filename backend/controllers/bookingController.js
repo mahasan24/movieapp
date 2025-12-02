@@ -251,7 +251,9 @@ export const confirmPayment = async (req, res) => {
       number_of_seats,
       total_price
     } = req.body;
-    
+    // Debug: Log user info
+    console.log('Confirm payment - User from token:', req.user);
+    console.log('Confirm payment - user_id:', req.user?.user_id);
     // Validation
     if (!payment_intent_id || !showtime_id || !customer_name || !customer_email || !number_of_seats || !total_price) {
       return sendError(res, 400, ErrorCodes.BOOKING_VALIDATION_ERROR, 
