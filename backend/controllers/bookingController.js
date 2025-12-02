@@ -1,5 +1,6 @@
 import * as bookingModel from "../models/booking.js";
 import { ErrorCodes, sendError } from "../utils/errors.js";
+import * as stripeService from "../services/stripeService.js";
 
 // GET /bookings/me - Get current user's own bookings (new simplified endpoint)
 export const getMyBookings = async (req, res) => {
@@ -141,10 +142,11 @@ export const cancelBooking = async (req, res) => {
       return sendError(res, 403, ErrorCodes.BOOKING_OWNERSHIP_ERROR, "You can only cancel your own bookings");
     }
     
-    const cancelledBooking = await bookingModel.cancelBooking(req.params.id);
+    // Use Stripe-aware cancellation
+    const cancelledBooking = await bookingModel.cancelBookingWithStripe(req.params.id);
     
     res.json({ 
-      message: "Booking cancelled successfully", 
+      message: "Booking cancelled successfully. Refund will be processed if applicable.", 
       booking: cancelledBooking 
     });
   } catch (error) {
@@ -159,6 +161,157 @@ export const cancelBooking = async (req, res) => {
     }
     
     sendError(res, 500, ErrorCodes.BOOKING_DELETE_ERROR, "Error cancelling booking");
+  }
+};
+
+// ============================================
+// B3.0 - STRIPE PAYMENT ENDPOINTS
+// ============================================
+
+// POST /bookings/create-payment-intent - Step 1: Initialize Stripe payment
+export const createPaymentIntent = async (req, res) => {
+  try {
+    const { 
+      showtime_id, 
+      customer_name, 
+      customer_email, 
+      customer_phone, 
+      number_of_seats, 
+      total_price 
+    } = req.body;
+    
+    // Validation
+    if (!showtime_id || !customer_name || !customer_email || !number_of_seats || !total_price) {
+      return sendError(res, 400, ErrorCodes.BOOKING_VALIDATION_ERROR, 
+        "showtime_id, customer_name, customer_email, number_of_seats, and total_price are required");
+    }
+
+    if (number_of_seats <= 0) {
+      return sendError(res, 400, ErrorCodes.BOOKING_VALIDATION_ERROR, "number_of_seats must be greater than 0");
+    }
+
+    if (total_price < 0) {
+      return sendError(res, 400, ErrorCodes.BOOKING_VALIDATION_ERROR, "total_price must be non-negative");
+    }
+
+    const paymentIntent = await bookingModel.createPaymentIntentForBooking({
+      showtime_id,
+      customer_name,
+      customer_email,
+      customer_phone,
+      number_of_seats,
+      total_price
+    });
+    
+    res.status(200).json({
+      client_secret: paymentIntent.client_secret,
+      payment_intent_id: paymentIntent.payment_intent_id,
+      amount: paymentIntent.amount,
+      currency: paymentIntent.currency,
+      showtime_id: paymentIntent.showtime_id,
+      number_of_seats: paymentIntent.number_of_seats,
+      seats_reserved: true,
+      message: "Payment intent created. Seats temporarily reserved. Complete payment within 10 minutes."
+    });
+  } catch (error) {
+    console.error("Error creating payment intent:", error);
+    
+    if (error.message === 'Showtime not found') {
+      return sendError(res, 400, ErrorCodes.SHOWTIME_NOT_FOUND, "Showtime not found");
+    }
+    
+    if (error.message === 'Not enough seats available') {
+      return sendError(res, 400, ErrorCodes.BOOKING_NOT_ENOUGH_SEATS, "Not enough seats available");
+    }
+    
+    if (error.message.startsWith('Price mismatch')) {
+      return sendError(res, 400, ErrorCodes.BOOKING_VALIDATION_ERROR, error.message);
+    }
+    
+    if (error.message === 'STRIPE_NOT_CONFIGURED') {
+      return res.status(503).json({
+        code: "STRIPE_NOT_CONFIGURED",
+        message: "Stripe payment integration is not configured. Please set STRIPE_SECRET_KEY in environment variables."
+      });
+    }
+    
+    sendError(res, 500, ErrorCodes.BOOKING_CREATE_ERROR, "Error creating payment intent");
+  }
+};
+
+// POST /bookings/confirm-payment - Step 2: Confirm booking after successful payment
+export const confirmPayment = async (req, res) => {
+  try {
+    const { 
+      payment_intent_id,
+      showtime_id,
+      customer_name,
+      customer_email,
+      customer_phone,
+      number_of_seats,
+      total_price
+    } = req.body;
+    
+    // Validation
+    if (!payment_intent_id || !showtime_id || !customer_name || !customer_email || !number_of_seats || !total_price) {
+      return sendError(res, 400, ErrorCodes.BOOKING_VALIDATION_ERROR, 
+        "payment_intent_id, showtime_id, customer_name, customer_email, number_of_seats, and total_price are required");
+    }
+
+    const booking = await bookingModel.confirmBookingWithStripe({
+      payment_intent_id,
+      user_id: req.user.user_id,
+      showtime_id,
+      customer_name,
+      customer_email,
+      customer_phone,
+      number_of_seats,
+      total_price
+    });
+    
+    res.status(201).json({
+      success: true,
+      message: "Booking confirmed successfully! Payment received.",
+      booking
+    });
+  } catch (error) {
+    console.error("Error confirming payment:", error);
+    
+    if (error.message.startsWith('Payment not successful')) {
+      return sendError(res, 400, "PAYMENT_FAILED", error.message);
+    }
+    
+    if (error.message === 'STRIPE_NOT_CONFIGURED') {
+      return res.status(503).json({
+        code: "STRIPE_NOT_CONFIGURED",
+        message: "Stripe payment integration is not configured."
+      });
+    }
+    
+    sendError(res, 500, ErrorCodes.BOOKING_CREATE_ERROR, "Error confirming booking after payment");
+  }
+};
+
+// GET /bookings/payment-config - Get Stripe publishable key for frontend
+export const getPaymentConfig = async (req, res) => {
+  try {
+    const publishableKey = process.env.STRIPE_PUBLISHABLE_KEY;
+    
+    if (!publishableKey) {
+      return res.status(503).json({
+        code: "STRIPE_NOT_CONFIGURED",
+        message: "Stripe is not configured on the server."
+      });
+    }
+    
+    res.json({
+      publishable_key: publishableKey,
+      currency: 'eur',
+      country: 'FI'
+    });
+  } catch (error) {
+    console.error("Error fetching payment config:", error);
+    sendError(res, 500, ErrorCodes.BOOKING_FETCH_ERROR, "Error fetching payment configuration");
   }
 };
 
