@@ -17,6 +17,16 @@
   font-weight: 700;
 }
 
+.browse-subtitle {
+  margin: 8px 0 0;
+  font-size: 1.1rem;
+  color: #667eea;
+}
+
+.browse-subtitle strong {
+  color: #2c3e50;
+}
+
 /* Filters Section */
 .filters-section {
   background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
@@ -348,5 +358,76 @@
   .cards-grid {
     grid-template-columns: 1fr;
     gap: 16px;
+  }
+}
+
+/* Location Filter Styles */
+.location-filter-group {
+  flex: 1.2;
+}
+
+.location-select {
+  background: linear-gradient(to right, #fff 0%, #f0f7ff 100%);
+  border-color: #667eea;
+}
+
+.location-select:focus {
+  border-color: #667eea;
+  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.15);
+}
+
+/* City Info Banner */
+.city-info-banner {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 16px 24px;
+  border-radius: 12px;
+  margin-bottom: 24px;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.city-info-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 1.1rem;
+  font-weight: 500;
+}
+
+.city-icon {
+  font-size: 1.5rem;
+}
+
+/* Results Summary Updates */
+.results-summary {
+  background: #f8f9fa;
+  padding: 12px 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  border-left: 4px solid #667eea;
+}
+
+.results-summary p {
+  margin: 0;
+  color: #495057;
+  font-size: 0.95rem;
+}
+
+.results-summary strong {
+  color: #667eea;
+  font-weight: 700;
+}
+
+@media (max-width: 768px) {
+  .city-info-banner {
+    padding: 12px 16px;
+  }
+
+  .city-info-content {
+    font-size: 0.95rem;
+  }
+
+  .city-icon {
+    font-size: 1.2rem;
   }
 }

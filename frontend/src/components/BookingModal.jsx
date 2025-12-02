@@ -8,19 +8,20 @@ import './BookingModal.css';
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:4000';
 
-// Stripe card element styling
+// Stripe card element styling (light theme)
 const CARD_ELEMENT_OPTIONS = {
   style: {
     base: {
       fontSize: '16px',
-      color: '#ffffff',
+      color: '#212529',
+      fontFamily: 'inherit',
       '::placeholder': {
-        color: '#aab7c4',
+        color: '#adb5bd',
       },
     },
     invalid: {
-      color: '#fa755a',
-      iconColor: '#fa755a',
+      color: '#dc3545',
+      iconColor: '#dc3545',
     },
   },
 };
@@ -128,7 +129,7 @@ const ShowtimeSelection = ({ showtimes, onNext, onClose }) => {
             <div className="customer-info-form">
               <h3>{t('booking.yourInformation')}</h3>
               
-              <div className="form-group">
+              <div className="booking-form-group">
                 <label>{t('booking.name')} *</label>
                 <input
                   type="text"
@@ -144,7 +145,7 @@ const ShowtimeSelection = ({ showtimes, onNext, onClose }) => {
                 {errors.name && <div className="form-error">{errors.name}</div>}
               </div>
 
-              <div className="form-group">
+              <div className="booking-form-group">
                 <label>{t('booking.email')} *</label>
                 <input
                   type="email"
@@ -160,7 +161,7 @@ const ShowtimeSelection = ({ showtimes, onNext, onClose }) => {
                 {errors.email && <div className="form-error">{errors.email}</div>}
               </div>
 
-              <div className="form-group">
+              <div className="booking-form-group">
                 <label>{t('booking.phone')}</label>
                 <input
                   type="tel"
@@ -170,7 +171,7 @@ const ShowtimeSelection = ({ showtimes, onNext, onClose }) => {
                 />
               </div>
 
-              <div className="form-group">
+              <div className="booking-form-group">
                 <label>{t('booking.numberOfSeats')} *</label>
                 <input
                   type="number"
@@ -206,12 +207,12 @@ const ShowtimeSelection = ({ showtimes, onNext, onClose }) => {
         </>
       )}
 
-      <div className="modal-buttons">
-        <button className="btn btn-secondary" onClick={onClose}>
+      <div className="booking-modal-buttons">
+        <button className="booking-btn booking-btn-secondary" onClick={onClose}>
           {t('booking.cancel')}
         </button>
         {selectedShowtime && (
-          <button className="btn btn-primary" onClick={handleNext}>
+          <button className="booking-btn booking-btn-primary" onClick={handleNext}>
             {t('booking.continue')} →
           </button>
         )}
@@ -357,22 +358,20 @@ const PaymentForm = ({ bookingData, onBack, onSuccess, onClose }) => {
       </div>
 
       <form onSubmit={handlePayment} className="payment-form">
-        <div className="form-group">
-          <label>{t('booking.cardDetails')}</label>
-          <div className="card-element-wrapper">
-            <CardElement options={CARD_ELEMENT_OPTIONS} />
-          </div>
-          <p className="test-card-info">
-            {t('booking.testCard')}: 4242 4242 4242 4242
-          </p>
+        <h3>{t('booking.cardDetails')}</h3>
+        <div className="card-element-wrapper">
+          <CardElement options={CARD_ELEMENT_OPTIONS} />
         </div>
+        <p className="test-card-info">
+          💳 {t('booking.testCard')}: 4242 4242 4242 4242 | Any future date | Any CVC
+        </p>
 
-        {error && <div className="error-message">❌ {error}</div>}
+        {error && <div className="booking-error-message">❌ {error}</div>}
 
-        <div className="modal-buttons">
+        <div className="booking-modal-buttons">
           <button
             type="button"
-            className="btn btn-secondary"
+            className="booking-btn booking-btn-secondary"
             onClick={onBack}
             disabled={processing}
           >
@@ -380,10 +379,10 @@ const PaymentForm = ({ bookingData, onBack, onSuccess, onClose }) => {
           </button>
           <button
             type="submit"
-            className="btn btn-primary"
+            className="booking-btn booking-btn-primary"
             disabled={!stripe || processing}
           >
-            {processing ? t('booking.processing') : `${t('booking.pay')} ${bookingData.totalPrice.toFixed(2)} EUR`}
+            {processing ? t('booking.processing') : `💳 ${t('booking.pay')} ${bookingData.totalPrice.toFixed(2)} EUR`}
           </button>
         </div>
       </form>
@@ -411,9 +410,9 @@ const BookingConfirmation = ({ booking, onClose }) => {
         <p className="confirmation-note">{t('booking.emailSent')}</p>
       </div>
 
-      <div className="modal-buttons">
-        <button className="btn btn-primary" onClick={onClose}>
-          {t('booking.close')}
+      <div className="booking-modal-buttons">
+        <button className="booking-btn booking-btn-primary" onClick={onClose}>
+          ✓ {t('booking.close')}
         </button>
       </div>
     </div>
@@ -499,14 +498,10 @@ const BookingModal = ({ movie, isOpen, onClose }) => {
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-        <button className="modal-close" onClick={onClose}>
-          ✕
-        </button>
-
-        <div className="modal-header">
-          <h1 className="modal-title">{movie.title}</h1>
+    <div className="booking-modal-overlay" onClick={onClose}>
+      <div className="booking-modal-content" onClick={(e) => e.stopPropagation()}>
+        <div className="booking-modal-header">
+          <h1 className="booking-modal-title">{movie.title}</h1>
           <div className="step-indicator">
             <div className={`step ${step >= 1 ? 'active' : ''}`}>1</div>
             <div className="step-line"></div>
@@ -514,12 +509,15 @@ const BookingModal = ({ movie, isOpen, onClose }) => {
             <div className="step-line"></div>
             <div className={`step ${step >= 3 ? 'active' : ''}`}>3</div>
           </div>
+          <button className="booking-modal-close" onClick={onClose}>
+            ✕
+          </button>
         </div>
 
-        <div className="modal-body">
+        <div className="booking-modal-body">
           {loadingShowtimes ? (
             <div className="loading-state">
-              <div className="loading-spinner"></div>
+              <div className="booking-loading-spinner"></div>
               <p>{t('booking.loadingShowtimes')}</p>
             </div>
           ) : step === 1 ? (
@@ -542,7 +540,7 @@ const BookingModal = ({ movie, isOpen, onClose }) => {
           ) : (
             <div className="error-state">
               <p>{t('booking.stripeNotConfigured')}</p>
-              <button className="btn btn-secondary" onClick={onClose}>
+              <button className="booking-btn booking-btn-secondary" onClick={onClose}>
                 {t('booking.close')}
               </button>
             </div>

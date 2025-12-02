@@ -3,9 +3,11 @@ import {
   getAllTheaters, 
   getTheaterById, 
   getTheatersByCity,
-  createTheater 
+  createTheater,
+  updateTheater,
+  deleteTheater
 } from "../models/theater.js";
-import { authenticate } from "../middleware/auth.js";
+import { authenticate, requireRole } from "../middleware/auth.js";
 
 const router = express.Router();
 
@@ -46,18 +48,41 @@ router.get("/:id", async (req, res) => {
 });
 
 // POST create theater (admin only)
-router.post("/", authenticate, async (req, res) => {
+router.post("/", authenticate, requireRole('admin'), async (req, res) => {
   try {
-    // Check if user is admin
-    if (!req.user.role) {
-      return res.status(403).json({ message: "Admin access required" });
-    }
-    
     const theater = await createTheater(req.body);
     res.status(201).json(theater);
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Error creating theater" });
+  }
+});
+
+// PUT update theater (admin only)
+router.put("/:id", authenticate, requireRole('admin'), async (req, res) => {
+  try {
+    const theater = await updateTheater(req.params.id, req.body);
+    if (!theater) {
+      return res.status(404).json({ message: "Theater not found" });
+    }
+    res.json(theater);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Error updating theater" });
+  }
+});
+
+// DELETE theater (admin only)
+router.delete("/:id", authenticate, requireRole('admin'), async (req, res) => {
+  try {
+    const theater = await deleteTheater(req.params.id);
+    if (!theater) {
+      return res.status(404).json({ message: "Theater not found" });
+    }
+    res.json({ message: "Theater deleted successfully", theater });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Error deleting theater" });
   }
 });
 

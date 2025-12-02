@@ -127,16 +127,19 @@ const MovieDetail = () => {
               </span>
             )}
 
-            {/* Duration FIXED */}
-            {movie.duration && (
-              <span className="meta-item">
-                <span className="meta-icon">⏱️</span>
-                <span className="meta-label">{t('movieDetail.duration')}:</span>
-                <span className="meta-value">
-                  {movie.duration.hours}h {movie.duration.minutes}m
-                </span>
+            {/* Duration - handles both object and number formats */}
+            <span className="meta-item">
+              <span className="meta-icon">⏱️</span>
+              <span className="meta-label">{t('movieDetail.duration')}:</span>
+              <span className="meta-value">
+                {movie.duration 
+                  ? (typeof movie.duration === 'object' 
+                      ? `${movie.duration.hours}h ${movie.duration.minutes}m`
+                      : `${Math.floor(movie.duration / 60)}h ${movie.duration % 60}m`)
+                  : t('common.notAvailable')
+                }
               </span>
-            )}
+            </span>
 
             {/* Rating FIXED */}
             {movie.rating !== null && movie.rating !== undefined && (
@@ -170,20 +173,16 @@ const MovieDetail = () => {
           )}
 
           {/* Director */}
-          {movie.director && (
-            <div className="detail-section">
-              <h3 className="section-title">{t('movieDetail.director')}</h3>
-              <p className="info-text">{movie.director}</p>
-            </div>
-          )}
+          <div className="detail-section">
+            <h3 className="section-title">{t('movieDetail.director')}</h3>
+            <p className="info-text">{movie.director || t('common.notAvailable')}</p>
+          </div>
 
           {/* Cast */}
-          {movie.cast && (
-            <div className="detail-section">
-              <h3 className="section-title">{t('movieDetail.cast')}</h3>
-              <p className="info-text">{movie.cast}</p>
-            </div>
-          )}
+          <div className="detail-section">
+            <h3 className="section-title">{t('movieDetail.cast')}</h3>
+            <p className="info-text">{movie.cast || t('common.notAvailable')}</p>
+          </div>
 
           {/* Buttons */}
           <div className="action-buttons">

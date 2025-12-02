@@ -12,7 +12,10 @@ import {
   getNowShowingMovies,
   searchExternalMovies,
   importMovieFromTmdb,
-  importPopularMovies
+  importPopularMovies,
+  getAvailableCities,
+  getMoviesByCity,
+  getShowtimesByMovieAndCity
 } from "../models/movie.js";
 import { authenticate, requireRole } from "../middleware/auth.js";
 import { ErrorCodes, sendError } from "../utils/errors.js";
@@ -132,6 +135,44 @@ router.get("/now-showing", async (req, res) => {
   } catch (error) {
     console.error(error);
     sendError(res, 500, ErrorCodes.MOVIE_FETCH_ERROR, "Error fetching now-showing movies");
+  }
+});
+
+// GET available cities with theaters
+router.get("/cities", async (req, res) => {
+  try {
+    const cities = await getAvailableCities();
+    res.json(cities);
+  } catch (error) {
+    console.error(error);
+    sendError(res, 500, ErrorCodes.MOVIE_FETCH_ERROR, "Error fetching available cities");
+  }
+});
+
+// GET movies showing in a specific city
+router.get("/by-city/:city", async (req, res) => {
+  try {
+    const { city } = req.params;
+    if (!city) {
+      return sendError(res, 400, ErrorCodes.SEARCH_QUERY_REQUIRED, "City parameter is required");
+    }
+    const movies = await getMoviesByCity(city);
+    res.json(movies);
+  } catch (error) {
+    console.error(error);
+    sendError(res, 500, ErrorCodes.MOVIE_FETCH_ERROR, "Error fetching movies by city");
+  }
+});
+
+// GET showtimes for a movie in a specific city
+router.get("/:id/showtimes/:city", async (req, res) => {
+  try {
+    const { id, city } = req.params;
+    const showtimes = await getShowtimesByMovieAndCity(id, city);
+    res.json(showtimes);
+  } catch (error) {
+    console.error(error);
+    sendError(res, 500, ErrorCodes.MOVIE_FETCH_ERROR, "Error fetching showtimes for movie in city");
   }
 });
 

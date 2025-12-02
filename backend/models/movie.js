@@ -6,7 +6,7 @@ export const searchExternalMovies = async (query, language = 'en') => {
   try {
     const results = await tmdbService.searchMovies(query, language);
     
-    // Return simplified results for the UI
+    // Return simplified results for the UI with all relevant data
     return results.map(movie => ({
       tmdb_id: movie.id,
       title: movie.title,
@@ -19,8 +19,11 @@ export const searchExternalMovies = async (query, language = 'en') => {
       release_date: movie.release_date,
       year: movie.release_date ? new Date(movie.release_date).getFullYear() : null,
       vote_average: movie.vote_average,
+      rating: movie.vote_average ? parseFloat(movie.vote_average.toFixed(1)) : null,
       popularity: movie.popularity,
-      language: movie.original_language
+      original_language: movie.original_language,
+      // Genre IDs from search (full genre names come with details)
+      genre_ids: movie.genre_ids
     }));
   } catch (error) {
     console.error('Error searching external movies:', error);
@@ -28,7 +31,7 @@ export const searchExternalMovies = async (query, language = 'en') => {
   }
 };
 
-// A1.3 - Import a movie from TMDB
+// A1.3 - Import a movie from TMDB with full details including language
 export const importMovieFromTmdb = async (tmdbId, language = 'en') => {
   try {
     // Check if movie already exists
@@ -41,11 +44,17 @@ export const importMovieFromTmdb = async (tmdbId, language = 'en') => {
       throw new Error('Movie already exists in database');
     }
     
-    // Fetch full details from TMDB
+    // Fetch full details from TMDB (includes credits for director/cast)
     const tmdbMovie = await tmdbService.getMovieDetails(tmdbId, language);
     
-    // Map to our schema
-    const movieData = tmdbService.mapTmdbToSchema(tmdbMovie);
+    // Map to our schema - pass the import language
+    const movieData = tmdbService.mapTmdbToSchema(tmdbMovie, language);
+    
+    console.log(`📥 Importing: ${movieData.title}`);
+    console.log(`   Director: ${movieData.director || 'N/A'}`);
+    console.log(`   Cast: ${movieData.cast ? movieData.cast.substring(0, 50) + '...' : 'N/A'}`);
+    console.log(`   Duration: ${movieData.duration || 'N/A'} min`);
+    console.log(`   Language: ${movieData.original_language} (imported as: ${language})`);
     
     // Insert into database (NOTE: "cast" is quoted because it's a reserved keyword)
     const result = await pool.query(
@@ -76,6 +85,7 @@ export const importMovieFromTmdb = async (tmdbId, language = 'en') => {
       ]
     );
     
+    console.log(`✅ Successfully imported: ${result.rows[0].title} (ID: ${result.rows[0].id})`);
     return result.rows[0];
   } catch (error) {
     console.error('Error importing movie from TMDB:', error);
@@ -197,19 +207,19 @@ export const updateMovie = async (id, movieData) => {
   }
   if (year !== undefined) {
     updates.push(`year = $${paramCount++}`);
-    values.push(year);
+    values.push(year === '' ? null : year);
   }
   if (rating !== undefined) {
     updates.push(`rating = $${paramCount++}`);
-    values.push(rating);
+    values.push(rating === '' ? null : rating);
   }
   if (poster_url !== undefined) {
     updates.push(`poster_url = $${paramCount++}`);
-    values.push(poster_url);
+    values.push(poster_url === '' ? null : poster_url);
   }
   if (duration !== undefined) {
     updates.push(`duration = $${paramCount++}`);
-    values.push(duration);
+    values.push(duration === '' ? null : duration);
   }
   if (director !== undefined) {
     updates.push(`director = $${paramCount++}`);
@@ -229,15 +239,16 @@ export const updateMovie = async (id, movieData) => {
   }
   if (tmdb_id !== undefined) {
     updates.push(`tmdb_id = $${paramCount++}`);
-    values.push(tmdb_id);
+    values.push(tmdb_id === '' ? null : tmdb_id);
   }
   if (popularity !== undefined) {
     updates.push(`popularity = $${paramCount++}`);
-    values.push(popularity);
+    values.push(popularity === '' ? null : popularity);
   }
   if (release_date !== undefined) {
     updates.push(`release_date = $${paramCount++}`);
-    values.push(release_date);
+    // Convert empty string to null for DATE type
+    values.push(release_date === '' ? null : release_date);
   }
   if (is_featured !== undefined) {
     updates.push(`is_featured = $${paramCount++}`);
@@ -272,11 +283,12 @@ export const deleteMovie = async (id) => {
   return result.rows[0];
 };
 
-// Featured movies - high rating and recent years
+// Featured movies - admin-managed with fallback to high rating
 export const getFeaturedMovies = async (limit = 10, language = null) => {
+  // First try to get admin-marked featured movies
   let query = `
     SELECT * FROM movies 
-    WHERE rating >= 8.0 AND year >= 2010
+    WHERE is_featured = true
   `;
   const params = [];
   
@@ -290,15 +302,38 @@ export const getFeaturedMovies = async (limit = 10, language = null) => {
     params.push(limit);
   }
   
-  const result = await pool.query(query, params);
+  let result = await pool.query(query, params);
+  
+  // If no admin-marked featured movies, fallback to high-rated movies
+  if (result.rows.length === 0) {
+    let fallbackQuery = `
+      SELECT * FROM movies 
+      WHERE rating >= 8.0 AND year >= 2010
+    `;
+    const fallbackParams = [];
+    
+    if (language) {
+      fallbackQuery += ` AND language = $1`;
+      fallbackParams.push(language);
+      fallbackQuery += ` ORDER BY rating DESC, year DESC LIMIT $2`;
+      fallbackParams.push(limit);
+    } else {
+      fallbackQuery += ` ORDER BY rating DESC, year DESC LIMIT $1`;
+      fallbackParams.push(limit);
+    }
+    
+    result = await pool.query(fallbackQuery, fallbackParams);
+  }
+  
   return result.rows;
 };
 
-// Trending movies - recent releases with good ratings
+// Trending movies - admin-managed with fallback to recent releases
 export const getTrendingMovies = async (limit = 10, language = null) => {
+  // First try to get admin-marked trending movies
   let query = `
     SELECT * FROM movies 
-    WHERE year >= 2015
+    WHERE is_trending_managed = true
   `;
   const params = [];
   
@@ -312,7 +347,29 @@ export const getTrendingMovies = async (limit = 10, language = null) => {
     params.push(limit);
   }
   
-  const result = await pool.query(query, params);
+  let result = await pool.query(query, params);
+  
+  // If no admin-marked trending movies, fallback to recent releases
+  if (result.rows.length === 0) {
+    let fallbackQuery = `
+      SELECT * FROM movies 
+      WHERE year >= 2020
+    `;
+    const fallbackParams = [];
+    
+    if (language) {
+      fallbackQuery += ` AND language = $1`;
+      fallbackParams.push(language);
+      fallbackQuery += ` ORDER BY year DESC, rating DESC LIMIT $2`;
+      fallbackParams.push(limit);
+    } else {
+      fallbackQuery += ` ORDER BY year DESC, rating DESC LIMIT $1`;
+      fallbackParams.push(limit);
+    }
+    
+    result = await pool.query(fallbackQuery, fallbackParams);
+  }
+  
   return result.rows;
 };
 
@@ -353,4 +410,69 @@ export const getAdminSummary = async () => {
   
   const result = await pool.query(summaryQuery);
   return result.rows[0];
+};
+
+// Get all available cities with theaters
+export const getAvailableCities = async () => {
+  const result = await pool.query(`
+    SELECT t.city, COUNT(*) as theater_count
+    FROM theaters t
+    WHERE t.city IS NOT NULL AND t.city != ''
+    GROUP BY t.city
+    ORDER BY t.city
+  `);
+  return result.rows;
+};
+
+// Get movies currently showing in a specific city
+export const getMoviesByCity = async (city) => {
+  const result = await pool.query(`
+    SELECT DISTINCT 
+      m.id, m.title, m.description, m.genre, m.year, m.rating, 
+      m.poster_url, m.duration, m.director, m."cast", m.language,
+      m.original_language, m.created_at,
+      t.city,
+      COUNT(DISTINCT s.showtime_id) as showtime_count,
+      MIN(s.show_date) as next_show_date,
+      MIN(s.price) as min_price,
+      MAX(s.price) as max_price
+    FROM movies m
+    INNER JOIN showtimes s ON m.id = s.movie_id
+    INNER JOIN auditoriums a ON s.auditorium_id = a.auditorium_id
+    INNER JOIN theaters t ON a.theater_id = t.theater_id
+    WHERE t.city ILIKE $1
+      AND s.show_date >= CURRENT_DATE
+    GROUP BY m.id, m.title, m.description, m.genre, m.year, m.rating, 
+             m.poster_url, m.duration, m.director, m."cast", m.language,
+             m.original_language, m.created_at, t.city
+    ORDER BY showtime_count DESC, m.rating DESC
+  `, [`%${city}%`]);
+  return result.rows;
+};
+
+// Get showtimes for a movie in a specific city
+export const getShowtimesByMovieAndCity = async (movieId, city) => {
+  const result = await pool.query(`
+    SELECT 
+      s.showtime_id,
+      s.show_date,
+      s.show_time,
+      s.price,
+      s.available_seats,
+      t.theater_id,
+      t.name as theater_name,
+      t.address as theater_address,
+      t.city,
+      a.auditorium_id,
+      a.name as auditorium_name,
+      a.seating_capacity
+    FROM showtimes s
+    INNER JOIN auditoriums a ON s.auditorium_id = a.auditorium_id
+    INNER JOIN theaters t ON a.theater_id = t.theater_id
+    WHERE s.movie_id = $1
+      AND t.city ILIKE $2
+      AND s.show_date >= CURRENT_DATE
+    ORDER BY s.show_date, s.show_time
+  `, [movieId, `%${city}%`]);
+  return result.rows;
 };
