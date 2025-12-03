@@ -5,7 +5,10 @@ import * as stripeService from "../services/stripeService.js";
 // GET /bookings/me - Get current user's own bookings (new simplified endpoint)
 export const getMyBookings = async (req, res) => {
   try {
+    console.log('getMyBookings - User:', req.user);
+    console.log('getMyBookings - user_id:', req.user?.user_id);
     const bookings = await bookingModel.getUserBookings(req.user.user_id);
+    console.log('getMyBookings - Found bookings:', bookings.length);
     res.json(bookings);
   } catch (error) {
     console.error("Error fetching user bookings:", error);
@@ -251,6 +254,10 @@ export const confirmPayment = async (req, res) => {
       number_of_seats,
       total_price
     } = req.body;
+    
+    // Debug: Log user info
+    console.log('Confirm payment - User from token:', req.user);
+    console.log('Confirm payment - user_id:', req.user?.user_id);
     
     // Validation
     if (!payment_intent_id || !showtime_id || !customer_name || !customer_email || !number_of_seats || !total_price) {

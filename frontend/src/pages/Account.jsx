@@ -90,13 +90,19 @@ const Account = () => {
   const filteredBookings = useMemo(() => {
     const now = new Date();
     return bookings.filter(booking => {
-      const showDateTime = new Date(`${booking.show_date} ${booking.show_time}`);
+      // Parse show_date properly (it comes as ISO string from DB)
+      const showDate = new Date(booking.show_date);
+      // Combine with show_time
+      if (booking.show_time) {
+        const [hours, minutes] = booking.show_time.split(':');
+        showDate.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0);
+      }
       
       switch (activeTab) {
         case 'active':
-          return booking.status === 'confirmed' && showDateTime >= now;
+          return booking.status === 'confirmed' && showDate >= now;
         case 'past':
-          return booking.status === 'confirmed' && showDateTime < now;
+          return booking.status === 'confirmed' && showDate < now;
         case 'cancelled':
           return booking.status === 'cancelled';
         default:

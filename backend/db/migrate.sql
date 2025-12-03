@@ -112,3 +112,4 @@ CREATE INDEX IF NOT EXISTS idx_theaters_city ON theaters(city);
 SELECT '✓ Migration completed! All columns and indexes have been added.' as status;
 
 
+
