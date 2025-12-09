@@ -43,10 +43,6 @@ const MovieDetail = () => {
   const handleBackClick = () => navigate('/browse');
 
   const handleBookTickets = () => {
-    if (!user) {
-      navigate('/login');
-      return;
-    }
     setIsBookingModalOpen(true);
   };
 
