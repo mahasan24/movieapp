@@ -42,11 +42,11 @@ export async function getAdminSummary() {
         m.id,
         m.title,
         m.poster_url,
-        COUNT(b.booking_id) as total_bookings,
-        SUM(b.number_of_seats) as total_seats_sold
+        COUNT(b.id) as total_bookings,
+        COALESCE(SUM(b.number_of_seats), 0) as total_seats_sold
       FROM movies m
       INNER JOIN showtimes s ON m.id = s.movie_id
-      INNER JOIN bookings b ON s.showtime_id = b.showtime_id
+      INNER JOIN bookings b ON s.id = b.showtime_id
       WHERE b.status = 'confirmed'
       GROUP BY m.id, m.title, m.poster_url
       ORDER BY total_bookings DESC

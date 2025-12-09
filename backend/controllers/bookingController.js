@@ -75,7 +75,7 @@ export const getBookingById = async (req, res) => {
   }
 };
 
-// POST /bookings - Create a new booking (AUTHENTICATED USER)
+// POST /bookings - Create a new booking (Guest or Authenticated User)
 export const createBooking = async (req, res) => {
   try {
     const { 
@@ -101,8 +101,9 @@ export const createBooking = async (req, res) => {
       return sendError(res, 400, ErrorCodes.BOOKING_VALIDATION_ERROR, "total_price must be non-negative");
     }
 
+    // user_id will be null for guest bookings
     const newBooking = await bookingModel.createBooking({
-      user_id: req.user.user_id,
+      user_id: req.user?.user_id || null,
       showtime_id,
       customer_name,
       customer_email,
@@ -140,9 +141,16 @@ export const cancelBooking = async (req, res) => {
     
     const isAdmin = req.user.role === true || req.user.role === 'true' || req.user.role === 1;
     
-    // Users can only cancel their own bookings, admins can cancel any
-    if (!isAdmin && booking.user_id !== req.user.user_id) {
-      return sendError(res, 403, ErrorCodes.BOOKING_OWNERSHIP_ERROR, "You can only cancel your own bookings");
+    // For bookings with a user_id, check ownership (unless admin)
+    // Guest bookings (user_id = null) can only be cancelled by admin
+    if (!isAdmin) {
+      if (booking.user_id === null) {
+        // Guest booking - only admin can cancel
+        return sendError(res, 403, ErrorCodes.BOOKING_OWNERSHIP_ERROR, "Guest bookings can only be cancelled by admin");
+      }
+      if (booking.user_id !== req.user.user_id) {
+        return sendError(res, 403, ErrorCodes.BOOKING_OWNERSHIP_ERROR, "You can only cancel your own bookings");
+      }
     }
     
     // Use Stripe-aware cancellation
@@ -242,7 +250,7 @@ export const createPaymentIntent = async (req, res) => {
   }
 };
 
-// POST /bookings/confirm-payment - Step 2: Confirm booking after successful payment
+// POST /bookings/confirm-payment - Step 2: Confirm booking after successful payment (Guest or Authenticated)
 export const confirmPayment = async (req, res) => {
   try {
     const { 
@@ -257,7 +265,7 @@ export const confirmPayment = async (req, res) => {
     
     // Debug: Log user info
     console.log('Confirm payment - User from token:', req.user);
-    console.log('Confirm payment - user_id:', req.user?.user_id);
+    console.log('Confirm payment - user_id:', req.user?.user_id || 'Guest booking');
     
     // Validation
     if (!payment_intent_id || !showtime_id || !customer_name || !customer_email || !number_of_seats || !total_price) {
@@ -267,7 +275,7 @@ export const confirmPayment = async (req, res) => {
 
     const booking = await bookingModel.confirmBookingWithStripe({
       payment_intent_id,
-      user_id: req.user.user_id,
+      user_id: req.user?.user_id || null, // null for guest bookings
       showtime_id,
       customer_name,
       customer_email,

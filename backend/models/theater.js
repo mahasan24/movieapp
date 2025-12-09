@@ -4,18 +4,17 @@ import pool from "../db/index.js";
 export async function getAllTheaters() {
   const sql = `
     SELECT 
-      t.theater_id as id,
-      t.theater_id,
+      t.id,
       t.name,
       t.address,
       t.city,
       t.phone,
       t.total_auditoriums,
-      COUNT(a.auditorium_id) as auditorium_count
+      COUNT(a.id) as auditorium_count
     FROM theaters t
-    LEFT JOIN auditoriums a ON t.theater_id = a.theater_id
-    GROUP BY t.theater_id, t.name, t.address, t.city, t.phone, t.total_auditoriums
-    ORDER BY t.theater_id
+    LEFT JOIN auditoriums a ON t.id = a.theater_id
+    GROUP BY t.id, t.name, t.address, t.city, t.phone, t.total_auditoriums
+    ORDER BY t.id
   `;
   const { rows } = await pool.query(sql);
   return rows;
@@ -23,9 +22,9 @@ export async function getAllTheaters() {
 
 // Get theater by ID with auditoriums
 export async function getTheaterById(id) {
-  const theaterSql = `SELECT theater_id as id, * FROM theaters WHERE theater_id = $1`;
+  const theaterSql = `SELECT * FROM theaters WHERE id = $1`;
   const auditoriumsSql = `
-    SELECT auditorium_id as id, auditorium_id, name, seating_capacity 
+    SELECT id, name, seating_capacity, theater_id
     FROM auditoriums 
     WHERE theater_id = $1
     ORDER BY name
@@ -44,7 +43,7 @@ export async function getTheaterById(id) {
 
 // Get theaters by city
 export async function getTheatersByCity(city) {
-  const sql = `SELECT theater_id as id, * FROM theaters WHERE city ILIKE $1 ORDER BY name`;
+  const sql = `SELECT * FROM theaters WHERE city ILIKE $1 ORDER BY name`;
   const { rows } = await pool.query(sql, [`%${city}%`]);
   return rows;
 }
@@ -54,7 +53,7 @@ export async function createTheater({ name, address, city, phone }) {
   const sql = `
     INSERT INTO theaters (name, address, city, phone)
     VALUES ($1, $2, $3, $4)
-    RETURNING theater_id as id, *
+    RETURNING *
   `;
   const { rows } = await pool.query(sql, [name, address, city, phone || null]);
   return rows[0];
@@ -65,8 +64,8 @@ export async function updateTheater(id, { name, address, city, phone }) {
   const sql = `
     UPDATE theaters 
     SET name = $1, address = $2, city = $3, phone = $4
-    WHERE theater_id = $5
-    RETURNING theater_id as id, *
+    WHERE id = $5
+    RETURNING *
   `;
   const { rows } = await pool.query(sql, [name, address, city, phone || null, id]);
   return rows[0];
@@ -74,7 +73,7 @@ export async function updateTheater(id, { name, address, city, phone }) {
 
 // Delete theater (admin only)
 export async function deleteTheater(id) {
-  const sql = `DELETE FROM theaters WHERE theater_id = $1 RETURNING theater_id as id, *`;
+  const sql = `DELETE FROM theaters WHERE id = $1 RETURNING *`;
   const { rows } = await pool.query(sql, [id]);
   return rows[0];
 }
