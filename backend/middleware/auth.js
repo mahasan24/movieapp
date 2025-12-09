@@ -29,6 +29,32 @@ export const authenticate = async (req, res, next) => {
   }
 };
 
+// Optional auth: attaches req.user if token is valid, otherwise continues without error
+export const optionalAuthenticate = async (req, res, next) => {
+  const authHeader = req.headers["authorization"] || req.headers["Authorization"];
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return next();
+  }
+
+  const token = authHeader.split(" ")[1];
+  try {
+    const payload = jwt.verify(token, process.env.JWT_SECRET || "change_this_secret");
+    req.user = { user_id: payload.user_id, email: payload.email, role: payload.role };
+    try {
+      const user = await getUserById(payload.user_id);
+      if (user) req.user = user;
+    } catch (e) {
+      // ignore fetch error
+    }
+    next();
+  } catch (err) {
+    if (err.name === 'TokenExpiredError') {
+      return sendError(res, 401, ErrorCodes.AUTH_EXPIRED_TOKEN, "Token has expired");
+    }
+    return sendError(res, 401, ErrorCodes.AUTH_INVALID_TOKEN, "Invalid or expired token");
+  }
+};
+
 // Role-based authorization middleware
 export const requireRole = (requiredRole) => {
   return (req, res, next) => {
