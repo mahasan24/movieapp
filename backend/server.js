@@ -37,7 +37,7 @@ async function start() {
       console.log('🎬 Movie Booking API Server');
       console.log(`🚀 Server running on port ${PORT}`);
       console.log(`📍 URL: http://localhost:${PORT}`);
-      
+      console.log('=================================');
     });
   } catch (err) {
     console.error("Failed to start server", err);
