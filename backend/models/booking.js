@@ -4,7 +4,7 @@ import * as stripeService from "../services/stripeService.js";
 // Get all bookings (with optional user_id filter for user-specific bookings)
 export async function getBookings(user_id = null) {
   let sql = `
-    SELECT b.id as booking_id, b.user_id, b.showtime_id, b.customer_name, b.customer_email, 
+    SELECT b.booking_id, b.user_id, b.showtime_id, b.customer_name, b.customer_email, 
            b.customer_phone, b.number_of_seats, b.total_price, b.status, 
            b.payment_status, b.payment_method, b.created_at,
            s.show_date, s.show_time, s.price,
@@ -12,10 +12,10 @@ export async function getBookings(user_id = null) {
            a.name as auditorium_name,
            t.name as theater_name, t.city
     FROM bookings b
-    INNER JOIN showtimes s ON b.showtime_id = s.id
+    INNER JOIN showtimes s ON b.showtime_id = s.showtime_id
     INNER JOIN movies m ON s.movie_id = m.id
-    INNER JOIN auditoriums a ON s.auditorium_id = a.id
-    INNER JOIN theaters t ON a.theater_id = t.id
+    INNER JOIN auditoriums a ON s.auditorium_id = a.auditorium_id
+    INNER JOIN theaters t ON a.theater_id = t.theater_id
   `;
   const values = [];
 
@@ -33,19 +33,19 @@ export async function getBookings(user_id = null) {
 // Get booking by ID
 export async function getBookingById(booking_id) {
   const { rows } = await pool.query(
-    `SELECT b.id as booking_id, b.user_id, b.showtime_id, b.customer_name, b.customer_email, 
+    `SELECT b.booking_id, b.user_id, b.showtime_id, b.customer_name, b.customer_email, 
             b.customer_phone, b.number_of_seats, b.total_price, b.status, 
             b.payment_status, b.payment_method, b.created_at,
             s.show_date, s.show_time, s.price,
             m.id as movie_id, m.title as movie_title, m.poster_url, m.duration,
-            a.id as auditorium_id, a.name as auditorium_name, a.seating_capacity,
-            t.id as theater_id, t.name as theater_name, t.city, t.address
+            a.auditorium_id, a.name as auditorium_name, a.seating_capacity,
+            t.theater_id, t.name as theater_name, t.city, t.address
      FROM bookings b
-     INNER JOIN showtimes s ON b.showtime_id = s.id
+     INNER JOIN showtimes s ON b.showtime_id = s.showtime_id
      INNER JOIN movies m ON s.movie_id = m.id
-     INNER JOIN auditoriums a ON s.auditorium_id = a.id
-     INNER JOIN theaters t ON a.theater_id = t.id
-     WHERE b.id = $1`,
+     INNER JOIN auditoriums a ON s.auditorium_id = a.auditorium_id
+     INNER JOIN theaters t ON a.theater_id = t.theater_id
+     WHERE b.booking_id = $1`,
     [booking_id]
   );
   return rows[0];
@@ -69,7 +69,7 @@ export async function createBooking({
 
     // Check available seats
     const { rows: showtimeRows } = await client.query(
-      'SELECT available_seats FROM showtimes WHERE id = $1 FOR UPDATE',
+      'SELECT available_seats FROM showtimes WHERE showtime_id = $1 FOR UPDATE',
       [showtime_id]
     );
 
@@ -86,7 +86,7 @@ export async function createBooking({
       INSERT INTO bookings (user_id, showtime_id, customer_name, customer_email, customer_phone, 
                            number_of_seats, total_price, status, payment_status, payment_method) 
       VALUES ($1, $2, $3, $4, $5, $6, $7, 'confirmed', 'completed', $8) 
-      RETURNING id as booking_id, user_id, showtime_id, customer_name, customer_email, customer_phone, 
+      RETURNING booking_id, user_id, showtime_id, customer_name, customer_email, customer_phone, 
                 number_of_seats, total_price, status, payment_status, payment_method, created_at
     `;
     const values = [user_id || null, showtime_id, customer_name, customer_email, customer_phone || null, number_of_seats, total_price, payment_method];
@@ -94,7 +94,7 @@ export async function createBooking({
 
     // Update available seats
     await client.query(
-      'UPDATE showtimes SET available_seats = available_seats - $1 WHERE id = $2',
+      'UPDATE showtimes SET available_seats = available_seats - $1 WHERE showtime_id = $2',
       [number_of_seats, showtime_id]
     );
 
@@ -124,7 +124,7 @@ export async function cancelBooking(booking_id) {
 
     // Get booking details
     const { rows: bookingRows } = await client.query(
-      'SELECT showtime_id, number_of_seats, status FROM bookings WHERE id = $1 FOR UPDATE',
+      'SELECT showtime_id, number_of_seats, status FROM bookings WHERE booking_id = $1 FOR UPDATE',
       [booking_id]
     );
 
@@ -140,15 +140,15 @@ export async function cancelBooking(booking_id) {
     const { rows: updatedBooking } = await client.query(
       `UPDATE bookings 
        SET status = 'cancelled', payment_status = 'failed'
-       WHERE id = $1 
-       RETURNING id as booking_id, user_id, showtime_id, customer_name, customer_email, customer_phone, 
+       WHERE booking_id = $1 
+       RETURNING booking_id, user_id, showtime_id, customer_name, customer_email, customer_phone, 
                  number_of_seats, total_price, status, payment_status, payment_method, created_at`,
       [booking_id]
     );
 
     // Return seats to showtime
     await client.query(
-      'UPDATE showtimes SET available_seats = available_seats + $1 WHERE id = $2',
+      'UPDATE showtimes SET available_seats = available_seats + $1 WHERE showtime_id = $2',
       [bookingRows[0].number_of_seats, bookingRows[0].showtime_id]
     );
 
@@ -196,7 +196,7 @@ export async function createPaymentIntentForBooking({
 
     // Check showtime exists and has enough seats
     const { rows: showtimeRows } = await client.query(
-      'SELECT available_seats, price FROM showtimes WHERE id = $1 FOR UPDATE',
+      'SELECT available_seats, price FROM showtimes WHERE showtime_id = $1 FOR UPDATE',
       [showtime_id]
     );
 
@@ -217,7 +217,7 @@ export async function createPaymentIntentForBooking({
     // Temporarily reserve seats (will be finalized or released after payment)
     // Note: In production, you'd want to implement a timeout to release these
     await client.query(
-      'UPDATE showtimes SET available_seats = available_seats - $1 WHERE id = $2',
+      'UPDATE showtimes SET available_seats = available_seats - $1 WHERE showtime_id = $2',
       [number_of_seats, showtime_id]
     );
 
@@ -282,7 +282,7 @@ export async function confirmBookingWithStripe({
       INSERT INTO bookings (user_id, showtime_id, customer_name, customer_email, customer_phone, 
                            number_of_seats, total_price, status, payment_status, payment_method) 
       VALUES ($1, $2, $3, $4, $5, $6, $7, 'confirmed', 'completed', 'stripe') 
-      RETURNING id as booking_id, user_id, showtime_id, customer_name, customer_email, customer_phone, 
+      RETURNING booking_id, user_id, showtime_id, customer_name, customer_email, customer_phone, 
                 number_of_seats, total_price, status, payment_status, payment_method, created_at
     `;
     const values = [
@@ -338,8 +338,8 @@ export async function cancelBookingWithStripe(booking_id) {
       `SELECT b.showtime_id, b.number_of_seats, b.status, b.payment_method,
               p.transaction_id, p.payment_status
        FROM bookings b
-       LEFT JOIN payments p ON b.id = p.booking_id
-       WHERE b.id = $1 FOR UPDATE`,
+       LEFT JOIN payments p ON b.booking_id = p.booking_id
+       WHERE b.booking_id = $1 FOR UPDATE`,
       [booking_id]
     );
 
@@ -368,15 +368,15 @@ export async function cancelBookingWithStripe(booking_id) {
     const { rows: updatedBooking } = await client.query(
       `UPDATE bookings 
        SET status = 'cancelled', payment_status = 'refunded'
-       WHERE id = $1 
-       RETURNING id as booking_id, user_id, showtime_id, customer_name, customer_email, customer_phone, 
+       WHERE booking_id = $1 
+       RETURNING booking_id, user_id, showtime_id, customer_name, customer_email, customer_phone, 
                  number_of_seats, total_price, status, payment_status, payment_method, created_at`,
       [booking_id]
     );
 
     // Return seats to showtime
     await client.query(
-      'UPDATE showtimes SET available_seats = available_seats + $1 WHERE id = $2',
+      'UPDATE showtimes SET available_seats = available_seats + $1 WHERE showtime_id = $2',
       [booking.number_of_seats, booking.showtime_id]
     );
 
@@ -395,3 +395,4 @@ export async function cancelBookingWithStripe(booking_id) {
     client.release();
   }
 }
+

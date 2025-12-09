@@ -4,7 +4,7 @@ import pool from "../db/index.js";
 export async function getShowtimes({ movie_id = null, theater_id = null, date = null, auditorium_id = null } = {}) {
   let sql = `
     SELECT 
-      s.id as showtime_id,
+      s.showtime_id,
       s.show_date,
       s.show_time,
       s.price,
@@ -14,17 +14,17 @@ export async function getShowtimes({ movie_id = null, theater_id = null, date = 
       m.poster_url,
       m.duration,
       m.rating,
-      a.id as auditorium_id,
+      a.auditorium_id,
       a.name as auditorium_name,
       a.seating_capacity,
-      t.id as theater_id,
+      t.theater_id,
       t.name as theater_name,
       t.city,
       t.address
     FROM showtimes s
     INNER JOIN movies m ON s.movie_id = m.id
-    INNER JOIN auditoriums a ON s.auditorium_id = a.id
-    INNER JOIN theaters t ON a.theater_id = t.id
+    INNER JOIN auditoriums a ON s.auditorium_id = a.auditorium_id
+    INNER JOIN theaters t ON a.theater_id = t.theater_id
     WHERE s.show_date >= CURRENT_DATE
   `;
   
@@ -38,7 +38,7 @@ export async function getShowtimes({ movie_id = null, theater_id = null, date = 
   }
   
   if (theater_id) {
-    sql += ` AND t.id = $${paramCount}`;
+    sql += ` AND t.theater_id = $${paramCount}`;
     params.push(theater_id);
     paramCount++;
   }
@@ -65,7 +65,7 @@ export async function getShowtimes({ movie_id = null, theater_id = null, date = 
 export async function getAllShowtimes() {
   const sql = `
     SELECT 
-      s.id as showtime_id,
+      s.showtime_id,
       s.show_date,
       s.show_time,
       s.price,
@@ -73,16 +73,16 @@ export async function getAllShowtimes() {
       m.id as movie_id,
       m.title as movie_title,
       m.duration,
-      a.id as auditorium_id,
+      a.auditorium_id,
       a.name as auditorium_name,
       a.seating_capacity,
-      t.id as theater_id,
+      t.theater_id,
       t.name as theater_name,
       t.city
     FROM showtimes s
     JOIN movies m ON s.movie_id = m.id
-    JOIN auditoriums a ON s.auditorium_id = a.id
-    JOIN theaters t ON a.theater_id = t.id
+    JOIN auditoriums a ON s.auditorium_id = a.auditorium_id
+    JOIN theaters t ON a.theater_id = t.theater_id
     WHERE s.show_date >= CURRENT_DATE
     ORDER BY s.show_date, s.show_time
   `;
@@ -94,21 +94,15 @@ export async function getAllShowtimes() {
 export async function getShowtimesByMovie(movie_id) {
   const sql = `
     SELECT 
-      s.id as showtime_id,
-      s.movie_id,
-      s.auditorium_id,
-      s.show_date,
-      s.show_time,
-      s.price,
-      s.available_seats,
+      s.*,
       a.name as auditorium_name,
       a.seating_capacity,
       t.name as theater_name,
       t.city,
       t.address
     FROM showtimes s
-    JOIN auditoriums a ON s.auditorium_id = a.id
-    JOIN theaters t ON a.theater_id = t.id
+    JOIN auditoriums a ON s.auditorium_id = a.auditorium_id
+    JOIN theaters t ON a.theater_id = t.theater_id
     WHERE s.movie_id = $1 
       AND s.show_date >= CURRENT_DATE
     ORDER BY s.show_date, s.show_time
@@ -121,13 +115,7 @@ export async function getShowtimesByMovie(movie_id) {
 export async function getshowtimesByDate(date) {
   const sql = `
     SELECT 
-      s.id as showtime_id,
-      s.movie_id,
-      s.auditorium_id,
-      s.show_date,
-      s.show_time,
-      s.price,
-      s.available_seats,
+      s.*,
       m.title as movie_title,
       m.duration,
       a.name as auditorium_name,
@@ -135,8 +123,8 @@ export async function getshowtimesByDate(date) {
       t.city
     FROM showtimes s
     JOIN movies m ON s.movie_id = m.id
-    JOIN auditoriums a ON s.auditorium_id = a.id
-    JOIN theaters t ON a.theater_id = t.id
+    JOIN auditoriums a ON s.auditorium_id = a.auditorium_id
+    JOIN theaters t ON a.theater_id = t.theater_id
     WHERE s.show_date = $1
     ORDER BY s.show_time
   `;
@@ -148,13 +136,7 @@ export async function getshowtimesByDate(date) {
 export async function getShowtimeById(showtime_id) {
   const sql = `
     SELECT 
-      s.id as showtime_id,
-      s.movie_id,
-      s.auditorium_id,
-      s.show_date,
-      s.show_time,
-      s.price,
-      s.available_seats,
+      s.*,
       m.id as movie_id,
       m.title as movie_title,
       m.description,
@@ -162,19 +144,19 @@ export async function getShowtimeById(showtime_id) {
       m.genre,
       m.rating,
       m.poster_url,
-      a.id as auditorium_id,
+      a.auditorium_id,
       a.name as auditorium_name,
       a.seating_capacity,
-      t.id as theater_id,
+      t.theater_id,
       t.name as theater_name,
       t.address,
       t.city,
       t.phone
     FROM showtimes s
     JOIN movies m ON s.movie_id = m.id
-    JOIN auditoriums a ON s.auditorium_id = a.id
-    JOIN theaters t ON a.theater_id = t.id
-    WHERE s.id = $1
+    JOIN auditoriums a ON s.auditorium_id = a.auditorium_id
+    JOIN theaters t ON a.theater_id = t.theater_id
+    WHERE s.showtime_id = $1
   `;
   const { rows } = await pool.query(sql, [showtime_id]);
   return rows[0];
@@ -183,7 +165,7 @@ export async function getShowtimeById(showtime_id) {
 // Create showtime (admin only)
 export async function createShowtime({ movie_id, auditorium_id, show_date, show_time, price }) {
   // Get auditorium capacity
-  const capacitySql = `SELECT seating_capacity FROM auditoriums WHERE id = $1`;
+  const capacitySql = `SELECT seating_capacity FROM auditoriums WHERE auditorium_id = $1`;
   const capacityResult = await pool.query(capacitySql, [auditorium_id]);
   
   if (capacityResult.rows.length === 0) {
@@ -195,7 +177,7 @@ export async function createShowtime({ movie_id, auditorium_id, show_date, show_
   const sql = `
     INSERT INTO showtimes (movie_id, auditorium_id, show_date, show_time, price, available_seats)
     VALUES ($1, $2, $3, $4, $5, $6)
-    RETURNING id as showtime_id, *
+    RETURNING *
   `;
   const { rows } = await pool.query(sql, [movie_id, auditorium_id, show_date, show_time, price, available_seats]);
   return rows[0];
@@ -251,7 +233,7 @@ export async function updateShowtime(showtime_id, updates) {
   }
   
   sql += setClauses.join(', ');
-  sql += ` WHERE id = $${paramCount} RETURNING id as showtime_id, *`;
+  sql += ` WHERE showtime_id = $${paramCount} RETURNING *`;
   params.push(showtime_id);
   
   const { rows } = await pool.query(sql, params);
@@ -260,7 +242,7 @@ export async function updateShowtime(showtime_id, updates) {
 
 // Delete showtime
 export async function deleteShowtime(showtime_id) {
-  const sql = `DELETE FROM showtimes WHERE id = $1 RETURNING id as showtime_id, *`;
+  const sql = `DELETE FROM showtimes WHERE showtime_id = $1 RETURNING *`;
   const { rows } = await pool.query(sql, [showtime_id]);
   return rows[0];
 }
@@ -270,8 +252,8 @@ export async function updateAvailableSeats(showtime_id, seats_change) {
   const sql = `
     UPDATE showtimes 
     SET available_seats = available_seats + $2
-    WHERE id = $1
-    RETURNING id as showtime_id, *
+    WHERE showtime_id = $1
+    RETURNING *
   `;
   const { rows } = await pool.query(sql, [showtime_id, seats_change]);
   return rows[0];
@@ -281,21 +263,15 @@ export async function updateAvailableSeats(showtime_id, seats_change) {
 export async function searchShowtimes({ movie_id, theater_id, city, date }) {
   let sql = `
     SELECT 
-      s.id as showtime_id,
-      s.movie_id,
-      s.auditorium_id,
-      s.show_date,
-      s.show_time,
-      s.price,
-      s.available_seats,
+      s.*,
       m.title as movie_title,
       a.name as auditorium_name,
       t.name as theater_name,
       t.city
     FROM showtimes s
     JOIN movies m ON s.movie_id = m.id
-    JOIN auditoriums a ON s.auditorium_id = a.id
-    JOIN theaters t ON a.theater_id = t.id
+    JOIN auditoriums a ON s.auditorium_id = a.auditorium_id
+    JOIN theaters t ON a.theater_id = t.theater_id
     WHERE s.show_date >= CURRENT_DATE
   `;
   
@@ -309,7 +285,7 @@ export async function searchShowtimes({ movie_id, theater_id, city, date }) {
   }
   
   if (theater_id) {
-    sql += ` AND t.id = $${paramCount}`;
+    sql += ` AND t.theater_id = $${paramCount}`;
     params.push(theater_id);
     paramCount++;
   }

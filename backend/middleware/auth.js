@@ -29,35 +29,6 @@ export const authenticate = async (req, res, next) => {
   }
 };
 
-// Optional authentication - doesn't require auth but attaches user if token provided
-// Used for guest booking - allows both logged-in users and guests
-export const optionalAuth = async (req, res, next) => {
-  const authHeader = req.headers["authorization"] || req.headers["Authorization"];
-  
-  // No token provided - continue as guest
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    req.user = null;
-    return next();
-  }
-
-  const token = authHeader.split(" ")[1];
-  try {
-    const payload = jwt.verify(token, process.env.JWT_SECRET || "change_this_secret");
-    req.user = { user_id: payload.user_id, email: payload.email, role: payload.role };
-    // fetch full user without password
-    try {
-      const user = await getUserById(payload.user_id);
-      if (user) req.user = user;
-    } catch (e) {
-      // ignore fetch error
-    }
-  } catch (err) {
-    // Invalid token - continue as guest instead of returning error
-    req.user = null;
-  }
-  next();
-};
-
 // Role-based authorization middleware
 export const requireRole = (requiredRole) => {
   return (req, res, next) => {
