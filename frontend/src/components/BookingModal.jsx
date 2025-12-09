@@ -240,21 +240,21 @@ const PaymentForm = ({ bookingData, onBack, onSuccess, onClose }) => {
     setProcessing(true);
     setError(null);
 
+    // Token is optional - guests can book without logging in
     const token = localStorage.getItem('token');
-    if (!token) {
-      setError(t('booking.pleaseLogin'));
-      setProcessing(false);
-      return;
+    const headers = {
+      'Content-Type': 'application/json',
+    };
+    // Add authorization header only if token exists
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
     }
 
     try {
       // Step 1: Create payment intent
       const intentResponse = await fetch(`${API_BASE}/bookings/create-payment-intent`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
+        headers,
         body: JSON.stringify({
           showtime_id: bookingData.showtime.showtime_id,
           customer_name: bookingData.customerName,
@@ -295,10 +295,7 @@ const PaymentForm = ({ bookingData, onBack, onSuccess, onClose }) => {
         // Step 3: Confirm booking
         const confirmResponse = await fetch(`${API_BASE}/bookings/confirm-payment`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-          },
+          headers,
           body: JSON.stringify({
             payment_intent_id,
             showtime_id: bookingData.showtime.showtime_id,
@@ -432,15 +429,10 @@ const BookingModal = ({ movie, isOpen, onClose }) => {
   // Load Stripe and showtimes when modal opens
   useEffect(() => {
     if (isOpen && movie) {
-      // Fetch Stripe publishable key
+      // Fetch Stripe publishable key (public endpoint - no auth required)
       const loadStripeKey = async () => {
-        const token = localStorage.getItem('token');
-        if (!token) return;
-
         try {
-          const res = await fetch(`${API_BASE}/bookings/payment-config`, {
-            headers: { 'Authorization': `Bearer ${token}` },
-          });
+          const res = await fetch(`${API_BASE}/bookings/payment-config`);
           const data = await res.json();
           if (res.ok && data.publishable_key) {
             setStripePromise(loadStripe(data.publishable_key));

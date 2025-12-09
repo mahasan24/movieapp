@@ -432,14 +432,14 @@ export const getMoviesByCity = async (city) => {
       m.poster_url, m.duration, m.director, m."cast", m.language,
       m.original_language, m.created_at,
       t.city,
-      COUNT(DISTINCT s.showtime_id) as showtime_count,
+      COUNT(DISTINCT s.id) as showtime_count,
       MIN(s.show_date) as next_show_date,
       MIN(s.price) as min_price,
       MAX(s.price) as max_price
     FROM movies m
     INNER JOIN showtimes s ON m.id = s.movie_id
-    INNER JOIN auditoriums a ON s.auditorium_id = a.auditorium_id
-    INNER JOIN theaters t ON a.theater_id = t.theater_id
+    INNER JOIN auditoriums a ON s.auditorium_id = a.id
+    INNER JOIN theaters t ON a.theater_id = t.id
     WHERE t.city ILIKE $1
       AND s.show_date >= CURRENT_DATE
     GROUP BY m.id, m.title, m.description, m.genre, m.year, m.rating, 
@@ -454,21 +454,21 @@ export const getMoviesByCity = async (city) => {
 export const getShowtimesByMovieAndCity = async (movieId, city) => {
   const result = await pool.query(`
     SELECT 
-      s.showtime_id,
+      s.id as showtime_id,
       s.show_date,
       s.show_time,
       s.price,
       s.available_seats,
-      t.theater_id,
+      t.id as theater_id,
       t.name as theater_name,
       t.address as theater_address,
       t.city,
-      a.auditorium_id,
+      a.id as auditorium_id,
       a.name as auditorium_name,
       a.seating_capacity
     FROM showtimes s
-    INNER JOIN auditoriums a ON s.auditorium_id = a.auditorium_id
-    INNER JOIN theaters t ON a.theater_id = t.theater_id
+    INNER JOIN auditoriums a ON s.auditorium_id = a.id
+    INNER JOIN theaters t ON a.theater_id = t.id
     WHERE s.movie_id = $1
       AND t.city ILIKE $2
       AND s.show_date >= CURRENT_DATE
