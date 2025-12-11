@@ -102,7 +102,7 @@ export const createBooking = async (req, res) => {
     }
 
     const newBooking = await bookingModel.createBooking({
-      user_id: req.user.user_id,
+      user_id: req.user?.user_id || null,
       showtime_id,
       customer_name,
       customer_email,
@@ -267,7 +267,7 @@ export const confirmPayment = async (req, res) => {
 
     const booking = await bookingModel.confirmBookingWithStripe({
       payment_intent_id,
-      user_id: req.user.user_id,
+      user_id: req.user?.user_id || null,
       showtime_id,
       customer_name,
       customer_email,

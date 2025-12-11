@@ -241,11 +241,6 @@ const PaymentForm = ({ bookingData, onBack, onSuccess, onClose }) => {
     setError(null);
 
     const token = localStorage.getItem('token');
-    if (!token) {
-      setError(t('booking.pleaseLogin'));
-      setProcessing(false);
-      return;
-    }
 
     try {
       // Step 1: Create payment intent
@@ -253,7 +248,7 @@ const PaymentForm = ({ bookingData, onBack, onSuccess, onClose }) => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
           showtime_id: bookingData.showtime.showtime_id,
@@ -297,7 +292,7 @@ const PaymentForm = ({ bookingData, onBack, onSuccess, onClose }) => {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
           },
           body: JSON.stringify({
             payment_intent_id,
@@ -434,12 +429,9 @@ const BookingModal = ({ movie, isOpen, onClose }) => {
     if (isOpen && movie) {
       // Fetch Stripe publishable key
       const loadStripeKey = async () => {
-        const token = localStorage.getItem('token');
-        if (!token) return;
-
         try {
           const res = await fetch(`${API_BASE}/bookings/payment-config`, {
-            headers: { 'Authorization': `Bearer ${token}` },
+            headers: {},
           });
           const data = await res.json();
           if (res.ok && data.publishable_key) {

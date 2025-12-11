@@ -14,6 +14,16 @@ const Account = () => {
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('active'); // active, past, cancelled
 
+  const isShowtimePast = (booking) => {
+    if (!booking?.show_date) return false;
+    const showDate = new Date(booking.show_date);
+    if (booking.show_time) {
+      const [hours, minutes] = booking.show_time.split(':');
+      showDate.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0);
+    }
+    return showDate < new Date();
+  };
+
   useEffect(() => {
     const fetchBookings = async () => {
       setLoading(true);
@@ -46,10 +56,18 @@ const Account = () => {
   }, [user, t]);
 
   const handleCancelBooking = async (bookingId) => {
+    const bookingToCancel = bookings.find(b => b.booking_id === bookingId);
+    if (!bookingToCancel) return;
+
+    // Prevent cancelling showtimes in the past
+    if (isShowtimePast(bookingToCancel)) {
+      alert(t('account.cancelFailed'));
+      return;
+    }
+
     if (!window.confirm(t('account.confirmCancel'))) return;
 
     // Optimistic UI update
-    const bookingToCancel = bookings.find(b => b.booking_id === bookingId);
     setBookings(bookings.map(b => 
       b.booking_id === bookingId ? { ...b, status: 'cancelled', cancelling: true } : b
     ));
@@ -254,7 +272,7 @@ const Account = () => {
                       <div className="booking-id-small">#{booking.booking_id}</div>
                     </div>
 
-                    {booking.status === 'confirmed' && !booking.cancelling && (
+                    {booking.status === 'confirmed' && !booking.cancelling && !isShowtimePast(booking) && (
                       <button 
                         className="cancel-booking-btn"
                         onClick={() => handleCancelBooking(booking.booking_id)}

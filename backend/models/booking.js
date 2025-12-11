@@ -333,13 +333,12 @@ export async function cancelBookingWithStripe(booking_id) {
   try {
     await client.query('BEGIN');
 
-    // Get booking and payment details
+    // Lock booking row first (avoid FOR UPDATE with outer joins)
     const { rows: bookingRows } = await client.query(
-      `SELECT b.showtime_id, b.number_of_seats, b.status, b.payment_method,
-              p.transaction_id, p.payment_status
-       FROM bookings b
-       LEFT JOIN payments p ON b.booking_id = p.booking_id
-       WHERE b.booking_id = $1 FOR UPDATE`,
+      `SELECT booking_id, user_id, showtime_id, number_of_seats, status, payment_method
+       FROM bookings
+       WHERE booking_id = $1
+       FOR UPDATE`,
       [booking_id]
     );
 
@@ -353,10 +352,22 @@ export async function cancelBookingWithStripe(booking_id) {
 
     const booking = bookingRows[0];
 
+    // Fetch latest payment info separately to keep the booking lock simple
+    const { rows: paymentRows } = await client.query(
+      `SELECT transaction_id, payment_status
+       FROM payments
+       WHERE booking_id = $1
+       ORDER BY payment_id DESC
+       LIMIT 1`,
+      [booking_id]
+    );
+
+    const payment = paymentRows[0] || {};
+
     // If payment was made through Stripe, process refund
-    if (booking.payment_method === 'stripe' && booking.transaction_id) {
+    if (booking.payment_method === 'stripe' && payment.transaction_id) {
       try {
-        await stripeService.refundPayment(booking.transaction_id);
+        await stripeService.refundPayment(payment.transaction_id);
         console.log(`✅ Stripe refund processed for booking ${booking_id}`);
       } catch (error) {
         console.error(`❌ Stripe refund failed for booking ${booking_id}:`, error);
@@ -367,7 +378,7 @@ export async function cancelBookingWithStripe(booking_id) {
     // Update booking status
     const { rows: updatedBooking } = await client.query(
       `UPDATE bookings 
-       SET status = 'cancelled', payment_status = 'refunded'
+       SET status = 'cancelled', payment_status = 'failed'
        WHERE booking_id = $1 
        RETURNING booking_id, user_id, showtime_id, customer_name, customer_email, customer_phone, 
                  number_of_seats, total_price, status, payment_status, payment_method, created_at`,

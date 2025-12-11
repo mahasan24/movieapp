@@ -43,6 +43,16 @@ const AdminEnhanced = () => {
 
   const token = localStorage.getItem('token');
 
+  const isShowtimePast = (booking) => {
+    if (!booking?.show_date) return false;
+    const showDate = new Date(booking.show_date);
+    if (booking.show_time) {
+      const [hours, minutes] = booking.show_time.split(':');
+      showDate.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0);
+    }
+    return showDate < new Date();
+  };
+
   // Fetch overview summary
   const fetchSummary = async () => {
     setLoading(true);
@@ -318,6 +328,12 @@ const AdminEnhanced = () => {
 
   // Cancel booking
   const cancelBooking = async (bookingId) => {
+    const bookingToCancel = bookings.find(b => b.booking_id === bookingId);
+    if (bookingToCancel && isShowtimePast(bookingToCancel)) {
+      alert(t('admin.operationFailed'));
+      return;
+    }
+
     if (!confirm(t('admin.confirmCancelBooking'))) return;
 
     try {
@@ -1689,7 +1705,7 @@ const BookingsTab = ({ bookings, cancelBooking, refreshBookings, t }) => {
                   <td>{getStatusBadge(booking.status)}</td>
                   <td>{getPaymentBadge(booking.payment_status)}</td>
                   <td>
-                    {booking.status === 'confirmed' && (
+                    {booking.status === 'confirmed' && !isShowtimePast(booking) && (
                       <button 
                         onClick={() => cancelBooking(booking.booking_id)}
                         className="cancel-btn"
