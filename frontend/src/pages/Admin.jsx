@@ -675,6 +675,7 @@ const AdminEnhanced = () => {
             bookings={bookings}
             cancelBooking={cancelBooking}
             refreshBookings={fetchBookings}
+            isShowtimePast={isShowtimePast}
             t={t}
           />
         )}
