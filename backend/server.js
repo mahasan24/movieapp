@@ -14,10 +14,35 @@ import pool from "./db/index.js";
 dotenv.config();
 
 const app = express();
-app.use(cors());
+
+// ------------ IMPORTANT FOR AZURE ------------
+app.set("trust proxy", 1); // ensures correct protocol handling on Azure
+// ---------------------------------------------
+
+// Allowed frontend origins
+const allowedOrigins = [
+  process.env.FRONTEND_URL,              // e.g. "https://movieapp-frontend.azurewebsites.net"
+  "http://localhost:5173",               // local dev
+  "http://localhost:3000"
+];
+
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        console.warn("❌ Blocked CORS origin:", origin);
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    credentials: true,
+  })
+);
+
 app.use(express.json());
 
-// routes
+// ---------------- Routes ----------------
 app.use("/movies", movieRoutes);
 app.use("/auth", authRoutes);
 app.use("/theaters", theaterRoutes);
@@ -31,18 +56,20 @@ const PORT = process.env.PORT || 4000;
 
 async function start() {
   try {
-    // DB connection test
-    await pool.query('SELECT 1');
+    console.log("🔌 Testing DB connection...");
+    await pool.query("SELECT 1");
+
     app.listen(PORT, () => {
-      console.log('=================================');
-      console.log('🎬 Movie Booking API Server');
-      console.log('=================================');
+      console.log("=================================");
+      console.log("🎬 Movie Booking API Server");
+      console.log("=================================");
       console.log(`🚀 Server running on port ${PORT}`);
-      console.log(`📍 URL: http://localhost:${PORT}`);
-      console.log('=================================');
+      console.log(`🌍 Public URL (Azure): ${process.env.API_BASE_URL}`);
+      console.log(`💻 Local URL: http://localhost:${PORT}`);
+      console.log("=================================");
     });
   } catch (err) {
-    console.error("Failed to start server", err);
+    console.error("❌ Failed to start server", err);
     process.exit(1);
   }
 }
