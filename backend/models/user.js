@@ -2,7 +2,7 @@ import pool from "../db/index.js";
 import bcrypt from "bcryptjs";
 
 // User helpers using Postgres
-export async function createUser({ name, email, password, role = "user" }) {
+export async function createUser({ name, email, password, role = false}) {
   const salt = bcrypt.genSaltSync(10);
   const password_hash = bcrypt.hashSync(password, salt);
   const sql = `INSERT INTO users (name, email, password_hash, role) VALUES ($1, $2, $3, $4) RETURNING user_id, name, email, role, created_at`;

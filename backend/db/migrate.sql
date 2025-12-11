@@ -1,9 +1,6 @@
 -- ============================================
 -- DATABASE MIGRATION SCRIPT
 -- ============================================
--- Run this if you already have the database and need to add new columns
--- This handles the "column does not exist" errors
--- ============================================
 
 -- Add missing columns to movies table (if they don't exist)
 DO $$
