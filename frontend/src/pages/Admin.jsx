@@ -675,6 +675,7 @@ const AdminEnhanced = () => {
             bookings={bookings}
             cancelBooking={cancelBooking}
             refreshBookings={fetchBookings}
+            isShowtimePast={isShowtimePast}
             t={t}
           />
         )}
@@ -1570,7 +1571,7 @@ const ShowtimesTab = ({
 };
 
 // Bookings Tab Component
-const BookingsTab = ({ bookings, cancelBooking, refreshBookings, t }) => {
+const BookingsTab = ({ bookings, cancelBooking, refreshBookings, isShowtimePast = () => false, t }) => {
   const [filter, setFilter] = useState('all'); // all, confirmed, cancelled, pending
   const [searchTerm, setSearchTerm] = useState('');
 
