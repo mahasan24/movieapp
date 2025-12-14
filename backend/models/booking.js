@@ -1,6 +1,54 @@
 import pool from "../db/index.js";
 import * as stripeService from "../services/stripeService.js";
 
+// Hold window for unpaid Stripe reservations (defaults to 5 minutes)
+const RESERVATION_HOLD_MS = parseInt(process.env.BOOKING_HOLD_MS || "300000", 10);
+
+// In-memory tracker for pending Stripe payment intents and their seat holds
+// { payment_intent_id: { showtime_id, number_of_seats, expiresAt, status, timer } }
+const pendingReservations = new Map();
+
+const releaseReservedSeats = async (showtime_id, number_of_seats) => {
+  await pool.query(
+    "UPDATE showtimes SET available_seats = available_seats + $1 WHERE showtime_id = $2",
+    [number_of_seats, showtime_id]
+  );
+};
+
+const trackReservation = (payment_intent_id, showtime_id, number_of_seats) => {
+  const expiresAt = Date.now() + RESERVATION_HOLD_MS;
+
+  const timer = setTimeout(async () => {
+    const current = pendingReservations.get(payment_intent_id);
+    if (!current || current.status !== "active") return;
+
+    try {
+      await releaseReservedSeats(showtime_id, number_of_seats);
+      pendingReservations.set(payment_intent_id, {
+        ...current,
+        status: "expired",
+        timer: null,
+      });
+      console.warn(
+        `⏱️  Payment intent ${payment_intent_id} expired. Released ${number_of_seats} seats for showtime ${showtime_id}.`
+      );
+    } catch (err) {
+      console.error(
+        `❌ Failed to release seats for expired intent ${payment_intent_id}:`,
+        err
+      );
+    }
+  }, RESERVATION_HOLD_MS);
+
+  pendingReservations.set(payment_intent_id, {
+    showtime_id,
+    number_of_seats,
+    expiresAt,
+    status: "active",
+    timer,
+  });
+};
+
 // Get all bookings (with optional user_id filter for user-specific bookings)
 export async function getBookings(user_id = null) {
   let sql = `
@@ -215,13 +263,10 @@ export async function createPaymentIntentForBooking({
     }
 
     // Temporarily reserve seats (will be finalized or released after payment)
-    // Note: In production, you'd want to implement a timeout to release these
     await client.query(
       'UPDATE showtimes SET available_seats = available_seats - $1 WHERE showtime_id = $2',
       [number_of_seats, showtime_id]
     );
-
-    await client.query('COMMIT');
 
     // Create Stripe payment intent
     const paymentIntent = await stripeService.createPaymentIntent({
@@ -234,6 +279,11 @@ export async function createPaymentIntentForBooking({
         customer_phone: customer_phone || ''
       }
     });
+
+    await client.query('COMMIT');
+
+    // Track reservation for automatic release if unpaid
+    trackReservation(paymentIntent.payment_intent_id, showtime_id, number_of_seats);
 
     return {
       ...paymentIntent,
@@ -277,6 +327,33 @@ export async function confirmBookingWithStripe({
       throw new Error(`Payment not successful. Status: ${paymentStatus.status}`);
     }
 
+    // Ensure reservation is still valid; if missing, re-check availability
+    const reservation = pendingReservations.get(payment_intent_id);
+    if (reservation && reservation.status === 'expired') {
+      throw new Error('Payment intent expired. Seats were released. Please start a new booking.');
+    }
+
+    if (!reservation) {
+      // Server restart or missed tracking; ensure seats still available and reserve them
+      const { rows: showtimeRows } = await client.query(
+        'SELECT available_seats FROM showtimes WHERE showtime_id = $1 FOR UPDATE',
+        [showtime_id]
+      );
+
+      if (!showtimeRows[0]) {
+        throw new Error('Showtime not found');
+      }
+
+      if (showtimeRows[0].available_seats < number_of_seats) {
+        throw new Error('Not enough seats available for this payment');
+      }
+
+      await client.query(
+        'UPDATE showtimes SET available_seats = available_seats - $1 WHERE showtime_id = $2',
+        [number_of_seats, showtime_id]
+      );
+    }
+
     // Create booking record
     const sql = `
       INSERT INTO bookings (user_id, showtime_id, customer_name, customer_email, customer_phone, 
@@ -303,7 +380,11 @@ export async function confirmBookingWithStripe({
       [bookingRows[0].booking_id, total_price, payment_intent_id]
     );
 
-    // Seats were already reserved in createPaymentIntent, so no need to update again
+    // Clear pending reservation timer
+    if (reservation && reservation.timer) {
+      clearTimeout(reservation.timer);
+    }
+    pendingReservations.delete(payment_intent_id);
 
     await client.query('COMMIT');
     
