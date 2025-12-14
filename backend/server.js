@@ -21,7 +21,10 @@ const app = express();
 app.set("trust proxy", 1);
 
 // ===== Security Middleware =====
-app.use(helmet());
+// Allow external assets (e.g., Stripe, Unsplash) while keeping defaults
+app.use(helmet({
+  crossOriginResourcePolicy: false,
+}));
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -53,6 +56,28 @@ app.use(cors({
 }));
 
 app.use(express.json());
+
+// ===== Health Check =====
+app.get("/health", async (_req, res) => {
+  let dbStatus = "down";
+  try {
+    await pool.query("SELECT 1");
+    dbStatus = "up";
+  } catch (err) {
+    console.error("Healthcheck DB ping failed:", err.message);
+  }
+
+  const payload = {
+    status: "ok",
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString(),
+    db: dbStatus,
+  };
+
+  return dbStatus === "up"
+    ? res.json(payload)
+    : res.status(503).json(payload);
+});
 
 // ===== Routes =====
 app.use("/movies", movieRoutes);
