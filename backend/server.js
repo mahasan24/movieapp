@@ -21,9 +21,18 @@ const app = express();
 app.set("trust proxy", 1);
 
 // ===== Security Middleware =====
-// Allow external assets (e.g., Stripe, Unsplash) while keeping defaults
+// Allow external assets (e.g., Stripe, Unsplash) while keeping sensible defaults
 app.use(helmet({
-  crossOriginResourcePolicy: false,
+  crossOriginResourcePolicy: false,      // allow images/scripts from other origins
+  crossOriginEmbedderPolicy: false,      // avoid blocking external assets
+  contentSecurityPolicy: {
+    useDefaults: true,
+    directives: {
+      "img-src": ["'self'", "data:", "https://images.unsplash.com"],
+      "script-src": ["'self'", "https://js.stripe.com"],
+      "frame-src": ["'self'", "https://js.stripe.com"],
+    },
+  },
 }));
 
 const limiter = rateLimit({
