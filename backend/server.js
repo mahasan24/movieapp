@@ -1,6 +1,8 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
 import movieRoutes from "./routes/movieRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import theaterRoutes from "./routes/theaterRoutes.js";
@@ -14,6 +16,22 @@ import pool from "./db/index.js";
 dotenv.config();
 
 const app = express();
+
+// Honor X-Forwarded-For when behind a proxy (needed for accurate rate limits)
+app.set("trust proxy", 1);
+
+// ===== Security Middleware =====
+app.use(helmet());
+
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 300, // per IP in window
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: "Too many requests, please try again later.",
+  skip: (req) => req.method === "OPTIONS", // don't count CORS preflight
+});
+app.use(limiter);
 
 // ===== CORS Configuration =====
 const allowedOrigins = [
