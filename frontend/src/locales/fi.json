@@ -6,7 +6,7 @@
     "confirm": "Oletko varma?"
   },
   "navbar": {
-    "brand": "MovieApp",
+    "brand": "North Star",
     "nowShowing": "Nyt näytöksessä",
     "browseMovies": "Selaa",
     "searchPlaceholder": "Etsi elokuvia...",

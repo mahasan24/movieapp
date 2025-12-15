@@ -6,7 +6,7 @@
     "confirm": "Are you sure?"
   },
   "navbar": {
-    "brand": "MovieApp",
+    "brand": "North Star",
     "nowShowing": "Now Showing",
     "browseMovies": "Browse",
     "searchPlaceholder": "Search movies...",

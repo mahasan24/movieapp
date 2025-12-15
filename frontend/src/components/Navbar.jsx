@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../context/AuthContext'
+import logo from "./assets/logo.png";
 import './Navbar.css'
 
 const Navbar = () => {
@@ -37,7 +38,8 @@ const Navbar = () => {
       <div className="navbar-container">
         {/* Brand */}
         <Link to="/" className="navbar-brand">
-          🎬 {t('navbar.brand')}
+          <img src={logo} alt="North Star Logo" className="navbar-logo" />
+          <span>{t('navbar.brand')}</span>
         </Link>
 
         {/* Desktop Navigation */}

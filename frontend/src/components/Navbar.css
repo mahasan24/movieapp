@@ -20,12 +20,22 @@
 
 /* Brand */
 .navbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   font-size: 1.4rem;
   font-weight: 700;
   color: #f98012;
   text-decoration: none;
   flex-shrink: 0;
 }
+
+.navbar-logo {
+  height: 36px;      /* logo size */
+  width: auto;
+  object-fit: contain;
+}
+
 
 .navbar-brand:hover {
   color: #e06d00;
