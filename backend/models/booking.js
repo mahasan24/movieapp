@@ -1,30 +1,6 @@
 import pool from "../db/index.js";
 import * as stripeService from "../services/stripeService.js";
 
-// Hold window for unpaid Stripe reservations (defaults to 5 minutes)
-const RESERVATION_HOLD_MS = parseInt(process.env.BOOKING_HOLD_MS || "300000", 10);
-
-// Expire pending bookings whose hold window has passed, returning seats.
-// If a client (transaction) is provided, use it; otherwise use pool.
-export async function expirePendingBookings(dbClient = null) {
-  const db = dbClient || pool;
-  await db.query(`
-    WITH expired AS (
-      UPDATE bookings
-      SET status = 'expired',
-          payment_status = 'failed'
-      WHERE status = 'pending'
-        AND expires_at IS NOT NULL
-        AND expires_at <= NOW()
-      RETURNING booking_id, showtime_id, number_of_seats
-    )
-    UPDATE showtimes s
-    SET available_seats = available_seats + e.number_of_seats
-    FROM expired e
-    WHERE s.showtime_id = e.showtime_id;
-  `);
-}
-
 // Get all bookings (with optional user_id filter for user-specific bookings)
 export async function getBookings(user_id = null) {
   let sql = `
@@ -213,9 +189,6 @@ export async function createPaymentIntentForBooking({
   number_of_seats, 
   total_price 
 }) {
-  // Clean up any expired pending bookings before proceeding
-  await expirePendingBookings();
-
   const client = await pool.connect();
   
   try {
@@ -242,10 +215,13 @@ export async function createPaymentIntentForBooking({
     }
 
     // Temporarily reserve seats (will be finalized or released after payment)
+    // Note: In production, you'd want to implement a timeout to release these
     await client.query(
       'UPDATE showtimes SET available_seats = available_seats - $1 WHERE showtime_id = $2',
       [number_of_seats, showtime_id]
     );
+
+    await client.query('COMMIT');
 
     // Create Stripe payment intent
     const paymentIntent = await stripeService.createPaymentIntent({
@@ -259,42 +235,13 @@ export async function createPaymentIntentForBooking({
       }
     });
 
-    // Persist pending booking with expiration and payment_intent_id
-    const expiresAt = new Date(Date.now() + RESERVATION_HOLD_MS);
-    const insertSql = `
-      INSERT INTO bookings (
-        user_id, showtime_id, customer_name, customer_email, customer_phone,
-        number_of_seats, total_price, status, payment_status, payment_method,
-        payment_intent_id, expires_at
-      )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', 'pending', 'stripe', $8, $9)
-      RETURNING booking_id, user_id, showtime_id, customer_name, customer_email, customer_phone,
-                number_of_seats, total_price, status, payment_status, payment_method,
-                payment_intent_id, expires_at, created_at
-    `;
-    const insertValues = [
-      null, // user_id is set at confirm step if available
-      showtime_id,
-      customer_name,
-      customer_email,
-      customer_phone || null,
-      number_of_seats,
-      total_price,
-      paymentIntent.payment_intent_id,
-      expiresAt
-    ];
-
-    const { rows: pendingRows } = await client.query(insertSql, insertValues);
-
-    await client.query('COMMIT');
-
     return {
       ...paymentIntent,
       showtime_id,
       number_of_seats,
       total_price,
-      seats_reserved: true,
-      booking: pendingRows[0]
+      // Note: Seats are temporarily reserved
+      seats_reserved: true
     };
   } catch (error) {
     await client.query('ROLLBACK');
@@ -318,43 +265,10 @@ export async function confirmBookingWithStripe({
   number_of_seats,
   total_price
 }) {
-  // Clean up expired holds before confirming
-  await expirePendingBookings();
-
   const client = await pool.connect();
   
   try {
     await client.query('BEGIN');
-
-    // Load pending booking by payment_intent_id
-    const { rows: pendingRows } = await client.query(
-      `SELECT * FROM bookings WHERE payment_intent_id = $1 FOR UPDATE`,
-      [payment_intent_id]
-    );
-
-    const pendingBooking = pendingRows[0];
-
-    if (!pendingBooking) {
-      throw new Error('Pending booking not found for this payment intent');
-    }
-
-    if (showtime_id && showtime_id !== pendingBooking.showtime_id) {
-      throw new Error('Showtime mismatch for this payment intent');
-    }
-
-    if (pendingBooking.status === 'expired' || (pendingBooking.expires_at && pendingBooking.expires_at <= new Date())) {
-      throw new Error('Payment intent expired. Seats were released. Please start a new booking.');
-    }
-
-    if (pendingBooking.status === 'confirmed') {
-      await client.query('COMMIT');
-      return pendingBooking;
-    }
-
-    // Validate totals if provided
-    if (typeof total_price === 'number' && Math.abs(total_price - pendingBooking.total_price) > 0.01) {
-      throw new Error('Price mismatch for confirmation');
-    }
 
     // Verify payment with Stripe
     const paymentStatus = await stripeService.confirmPayment(payment_intent_id);
@@ -365,25 +279,20 @@ export async function confirmBookingWithStripe({
 
     // Create booking record
     const sql = `
-      UPDATE bookings
-      SET user_id = COALESCE($1, user_id),
-          customer_name = $2,
-          customer_email = $3,
-          customer_phone = $4,
-          status = 'confirmed',
-          payment_status = 'completed',
-          payment_method = 'stripe',
-          expires_at = NULL
-      WHERE booking_id = $5
+      INSERT INTO bookings (user_id, showtime_id, customer_name, customer_email, customer_phone, 
+                           number_of_seats, total_price, status, payment_status, payment_method) 
+      VALUES ($1, $2, $3, $4, $5, $6, $7, 'confirmed', 'completed', 'stripe') 
       RETURNING booking_id, user_id, showtime_id, customer_name, customer_email, customer_phone, 
                 number_of_seats, total_price, status, payment_status, payment_method, created_at
     `;
     const values = [
-      user_id || pendingBooking.user_id || null, 
-      customer_name || pendingBooking.customer_name, 
-      customer_email || pendingBooking.customer_email, 
-      customer_phone || pendingBooking.customer_phone, 
-      pendingBooking.booking_id
+      user_id || null, 
+      showtime_id, 
+      customer_name, 
+      customer_email, 
+      customer_phone || null, 
+      number_of_seats, 
+      total_price
     ];
     const { rows: bookingRows } = await client.query(sql, values);
 
@@ -391,14 +300,10 @@ export async function confirmBookingWithStripe({
     await client.query(
       `INSERT INTO payments (booking_id, amount, payment_status, payment_method, transaction_id)
        VALUES ($1, $2, 'completed', 'stripe', $3)`,
-      [bookingRows[0].booking_id, pendingBooking.total_price, payment_intent_id]
+      [bookingRows[0].booking_id, total_price, payment_intent_id]
     );
 
-    // Clear pending reservation timer
-    if (reservation && reservation.timer) {
-      clearTimeout(reservation.timer);
-    }
-    pendingReservations.delete(payment_intent_id);
+    // Seats were already reserved in createPaymentIntent, so no need to update again
 
     await client.query('COMMIT');
     
@@ -428,12 +333,13 @@ export async function cancelBookingWithStripe(booking_id) {
   try {
     await client.query('BEGIN');
 
-    // Lock booking row first (avoid FOR UPDATE with outer joins)
+    // Get booking and payment details
     const { rows: bookingRows } = await client.query(
-      `SELECT booking_id, user_id, showtime_id, number_of_seats, status, payment_method
-       FROM bookings
-       WHERE booking_id = $1
-       FOR UPDATE`,
+      `SELECT b.showtime_id, b.number_of_seats, b.status, b.payment_method,
+              p.transaction_id, p.payment_status
+       FROM bookings b
+       LEFT JOIN payments p ON b.booking_id = p.booking_id
+       WHERE b.booking_id = $1 FOR UPDATE`,
       [booking_id]
     );
 
@@ -447,22 +353,10 @@ export async function cancelBookingWithStripe(booking_id) {
 
     const booking = bookingRows[0];
 
-    // Fetch latest payment info separately to keep the booking lock simple
-    const { rows: paymentRows } = await client.query(
-      `SELECT transaction_id, payment_status
-       FROM payments
-       WHERE booking_id = $1
-       ORDER BY payment_id DESC
-       LIMIT 1`,
-      [booking_id]
-    );
-
-    const payment = paymentRows[0] || {};
-
     // If payment was made through Stripe, process refund
-    if (booking.payment_method === 'stripe' && payment.transaction_id) {
+    if (booking.payment_method === 'stripe' && booking.transaction_id) {
       try {
-        await stripeService.refundPayment(payment.transaction_id);
+        await stripeService.refundPayment(booking.transaction_id);
         console.log(`✅ Stripe refund processed for booking ${booking_id}`);
       } catch (error) {
         console.error(`❌ Stripe refund failed for booking ${booking_id}:`, error);
@@ -501,4 +395,3 @@ export async function cancelBookingWithStripe(booking_id) {
     client.release();
   }
 }
-
