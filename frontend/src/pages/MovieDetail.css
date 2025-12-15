@@ -20,7 +20,11 @@
   margin-bottom: 25px;
 }
 .back-btn:hover {
+<<<<<<< HEAD
   background: #9f1616;
+=======
+  background: #f3f3f3;
+>>>>>>> dce8b876962a2fa93ad301f6ba33a7385fce6303
 }
 
 /* Main Layout */

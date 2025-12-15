@@ -1,6 +1,8 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
 import movieRoutes from "./routes/movieRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import theaterRoutes from "./routes/theaterRoutes.js";
@@ -14,6 +16,34 @@ import pool from "./db/index.js";
 dotenv.config();
 
 const app = express();
+
+// Honor X-Forwarded-For when behind a proxy (needed for accurate rate limits)
+app.set("trust proxy", 1);
+
+// ===== Security Middleware =====
+// Allow external assets (e.g., Stripe, Unsplash) while keeping sensible defaults
+app.use(helmet({
+  crossOriginResourcePolicy: false,      // allow images/scripts from other origins
+  crossOriginEmbedderPolicy: false,      // avoid blocking external assets
+  contentSecurityPolicy: {
+    useDefaults: true,
+    directives: {
+      "img-src": ["'self'", "data:", "https://images.unsplash.com"],
+      "script-src": ["'self'", "https://js.stripe.com"],
+      "frame-src": ["'self'", "https://js.stripe.com"],
+    },
+  },
+}));
+
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 300, // per IP in window
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: "Too many requests, please try again later.",
+  skip: (req) => req.method === "OPTIONS", // don't count CORS preflight
+});
+app.use(limiter);
 
 // ===== CORS Configuration =====
 const allowedOrigins = [
@@ -35,6 +65,28 @@ app.use(cors({
 }));
 
 app.use(express.json());
+
+// ===== Health Check =====
+app.get("/health", async (_req, res) => {
+  let dbStatus = "down";
+  try {
+    await pool.query("SELECT 1");
+    dbStatus = "up";
+  } catch (err) {
+    console.error("Healthcheck DB ping failed:", err.message);
+  }
+
+  const payload = {
+    status: "ok",
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString(),
+    db: dbStatus,
+  };
+
+  return dbStatus === "up"
+    ? res.json(payload)
+    : res.status(503).json(payload);
+});
 
 // ===== Routes =====
 app.use("/movies", movieRoutes);
